@@ -1,0 +1,17 @@
+@import "tailwindcss" source("../..");
+
+@tailwindss components;
+
+@layer components {
+    .centered-form {
+      @apply min-h-screen flex items-center justify-center;
+    }
+    .centered-form-inner {
+      @apply bg-white p-8 rounded shadow-md;
+    }
+    .purple-button {
+      @apply bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 
+      hover:to-green-600 text-white px-4 py-2 rounded transition-all duration-300 
+      justify-center;
+    }
+  }
