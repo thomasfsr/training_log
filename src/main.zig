@@ -120,7 +120,8 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         res.content_type = .HTML;
         res.body = "Missing email or password";
         return;
-    } else {
+    }
+    if (email.?.len > 0 and password.?.len > 0) {
         const row = try app.pool.row("select first_name, last_name, email from users where email = $1", .{email});
         if (row) |r| {
             user.first_name = r.get([]u8, 0);
