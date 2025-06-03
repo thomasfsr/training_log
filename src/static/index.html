@@ -5,14 +5,13 @@
     <script src="https://unpkg.com/htmx.org"></script>
     <link href="/tailwindcss" rel="stylesheet">
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
-    <div class="text-center">
-        <!-- This div will be replaced with login form -->
+<body class="centered-body">
+    <div class="text-center" id="content">
         <div id="auth-container">
             <button 
                 hx-get="/login" 
-                hx-target="#auth-container"
                 hx-swap="outerHTML"
+                hx-target="#auth-container"
                 class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition purple-button"
             >
                 Login

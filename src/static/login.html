@@ -1,41 +1,46 @@
-<div id="auth-container" class="bg-white p-8 rounded-lg shadow-md w-80">
+<div id="content" class="centered-form-inner">
     <h2 class="text-2xl font-bold mb-6 text-gray-800">Login</h2>
-    <form hx-put="/auth" hx-target="this" hx-swap="outerHTML" enctype="application/x-www-form-urlencoded" class="centered-form-inner">
-        <div class="mb-4">
+    <form
+        hx-put="/auth" 
+        hx-target="#content" 
+        hx-swap="outerHTML"
+        hx-boost="true"
+        hx-trigger="submit">
+
+        <div class="mb-4" id="email">
             <label class="block text-gray-700 text-sm font-bold mb-2">
                 Email
             </label>
             <input 
                 type="email"  
                 name="email"
-                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                class = "input-style"
                 required
             >
         </div>
-
-        <div class="mb-4">
+        <div class="mb-4" id="password">
             <label class="block text-gray-700 text-sm font-bold mb-2">
                 Password
             </label>
             <input 
                 type="password"  
                 name="password"
-                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                class = "input-style"
                 required
             >
         </div>
         <div class="flex items-center justify-between">
-            <button 
-                
-                class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition"
+            <button
+                class="purple-button"
+                type="submit"
             >
                 Sign In
             </button>
             <button 
                 hx-get="/" 
-                hx-target="#auth-container"
+                hx-target="#content"
                 hx-swap="outerHTML"
-                class="text-blue-500 hover:text-blue-700 font-semibold"
+                class="purple-button"
             >
                 Back
             </button>
