@@ -147,7 +147,8 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     var email: []const u8 = "";
     var password: []const u8 = "";
-    var hashed_pwd = "";
+    var hashed_pwd: [23]u8 = undefined;
+    var salt_pwd: [16]u8 = undefined;
 
     while (it.next()) |kv| {
         if (std.mem.eql(u8, kv.key, "email")) {
@@ -166,7 +167,11 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     }
     if (email.len > 0 and password.len > 0) {
         const row = try app.pool.row("select first_name, last_name, email from users where email = $1", .{email});
-        hashed_pwd = try bcrypt_encoder(password).hash;
+        const result_hash = try bcrypt_encoder(password);
+        hashed_pwd = result_hash.hash;
+        salt_pwd = result_hash.salt;
+        std.debug.print("{any}", .{hashed_pwd});
+        std.debug.print("{any}", .{salt_pwd});
 
     if (row) |r| {
         const user_first_name = r.get([]u8, 0);
@@ -186,7 +191,7 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     if (row == null) {
         const template = try std.mem.replaceOwned(u8, res.arena, html_auth,"{s}", "User not found. {em} {hpwd}");
         const email_replaced = try std.mem.replaceOwned(u8, res.arena, template,"{em}", email);
-        const hashed_pwd_replaced = try std.mem.replaceOwned(u8, res.arena, email_replaced,"{hpwd}", hashed_pwd);
+        const hashed_pwd_replaced = try std.mem.replaceOwned(u8, res.arena, email_replaced,"{hpwd}", hashed_pwd[0..]);
         res.body = hashed_pwd_replaced;
         res.status = 200;
         res.content_type = .HTML;
