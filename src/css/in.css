@@ -23,9 +23,9 @@
     }
 
     .page-title {
-      @apply "text-2xl font-bold mb-6 text-gray-800";
+      @apply text-2xl font-bold mb-6 text-gray-800;
     }
     .label-style {
-      @apply "text-2xl font-bold mb-6 text-gray-800";
+      @apply text-2xl font-bold mb-6 text-gray-800;
     }
   }
