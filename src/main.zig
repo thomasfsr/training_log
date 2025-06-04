@@ -98,16 +98,22 @@ const BcryptResult = struct {
 //     return &hashed_pwd;
 // }
 
+fn bcrypt_encoder(pwd: []const u8) ![]const u8 {
+    var out: [60]u8 = undefined;
+    const options: std.crypto.pwhash.bcrypt.HashOptions = .{
+        .params = std.crypto.pwhash.bcrypt.Params.owasp,
+        .encoding = std.crypto.pwhash.Encoding.crypt};
 
-fn bcrypt_encoder(pwd: []const u8) !BcryptResult {
-    const params = std.crypto.pwhash.bcrypt.Params.owasp;
-    var salt: [16]u8 = undefined;
-    std.crypto.random.bytes(&salt);
-    const hash = std.crypto.pwhash.bcrypt.bcrypt(pwd, salt, params);
-    return BcryptResult{
-        .hash = hash,
-        .salt = salt,
-    };
+    const hash = try std.crypto.pwhash.bcrypt.strHash(pwd, options, &out);
+    return hash;
+}
+
+fn bcrypt_verify(str: []const u8, pwd: []const u8) bool {
+    const options: std.crypto.pwhash.bcrypt.HashOptions = .{
+        .params = std.crypto.pwhash.bcrypt.Params.owasp,
+        .encoding = std.crypto.pwhash.Encoding.crypt};
+
+    return std.crypto.pwhash.bcrypt.strVerify(str, pwd, options) catch false;
 }
 
 //------------------------- Functions --------------------------------------
@@ -147,8 +153,8 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     var email: []const u8 = "";
     var password: []const u8 = "";
-    var hashed_pwd: [23]u8 = undefined;
-    var salt_pwd: [16]u8 = undefined;
+    var hashed_pwd: []const u8 = "";
+    // var salt_pwd: [16]u8 = undefined;
 
     while (it.next()) |kv| {
         if (std.mem.eql(u8, kv.key, "email")) {
@@ -167,11 +173,11 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     }
     if (email.len > 0 and password.len > 0) {
         const row = try app.pool.row("select first_name, last_name, email from users where email = $1", .{email});
-        const result_hash = try bcrypt_encoder(password);
-        hashed_pwd = result_hash.hash;
-        salt_pwd = result_hash.salt;
+        hashed_pwd = try bcrypt_encoder(password);
+        // hashed_pwd = result_hash.hash;
+        // salt_pwd = result_hash.salt;
         std.debug.print("{any}", .{hashed_pwd});
-        std.debug.print("{any}", .{salt_pwd});
+        // std.debug.print("{any}", .{salt_pwd});
 
     if (row) |r| {
         const user_first_name = r.get([]u8, 0);
