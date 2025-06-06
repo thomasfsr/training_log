@@ -116,6 +116,27 @@ fn bcrypt_verify(str: []const u8, pwd: []const u8) bool {
     return std.crypto.pwhash.bcrypt.strVerify(str, pwd, options) catch false;
 }
 
+pub fn generateUUIDv4(allocator: std.mem.Allocator) ![]const u8 {
+    // 1. Generate random bytes
+    var bytes: [16]u8 = undefined;
+    std.crypto.random.bytes(&bytes);
+
+    // 2. Set version 4 (0100) and variant (10) bits
+    bytes[6] = (bytes[6] & 0x0F) | 0x40;
+    bytes[8] = (bytes[8] & 0x3F) | 0x80;
+
+    // 3. Format as UUID string
+    return std.fmt.allocPrint(allocator, 
+        "{s}-{s}-{s}-{s}-{s}", .{
+            std.fmt.fmtSliceHexLower(bytes[0..4]),   // First segment (8 chars)
+            std.fmt.fmtSliceHexLower(bytes[4..6]),   // Second segment (4 chars)
+            std.fmt.fmtSliceHexLower(bytes[6..8]),   // Third segment (4 chars)
+            std.fmt.fmtSliceHexLower(bytes[8..10]),  // Fourth segment (4 chars)
+            std.fmt.fmtSliceHexLower(bytes[10..16]), // Fifth segment (12 chars)
+        }
+    );
+}
+
 //------------------------- Functions --------------------------------------
 
 fn @"error"(_: *App, _: *httpz.Request, _: *httpz.Response) !void {
@@ -174,10 +195,6 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     if (email.len > 0 and password.len > 0) {
         const row = try app.pool.row("select first_name, last_name, email from users where email = $1", .{email});
         hashed_pwd = try bcrypt_encoder(password);
-        // hashed_pwd = result_hash.hash;
-        // salt_pwd = result_hash.salt;
-        std.debug.print("{any}", .{hashed_pwd});
-        // std.debug.print("{any}", .{salt_pwd});
 
     if (row) |r| {
         const user_first_name = r.get([]u8, 0);
@@ -189,11 +206,25 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         const last_name_replaced = try std.mem.replaceOwned(u8, res.arena, first_name_replaced,"{ln}", user_last_name);
         const email_replaced = try std.mem.replaceOwned(u8, res.arena, last_name_replaced,"{em}", user_email);
 
+        const session_token = try generateUUIDv4(res.arena);
+
+        const cookie_options = httpz.response.CookieOpts{
+            .path = "/",
+            .domain = "",
+            .max_age = 600,
+            .secure = false, // in production set to true (https only)
+            .http_only = true,
+            .partitioned= false,
+            .same_site = .lax,
+            };
+            
+        try res.setCookie("session_token", session_token, cookie_options);
         res.body = email_replaced;
         res.status = 200;
         res.content_type = .HTML;
         return;
         }
+
     if (row == null) {
         const template = try std.mem.replaceOwned(u8, res.arena, html_auth,"{s}", "User not found. {em} {hpwd}");
         const email_replaced = try std.mem.replaceOwned(u8, res.arena, template,"{em}", email);
