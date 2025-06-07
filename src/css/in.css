@@ -26,6 +26,10 @@
       @apply text-2xl font-bold mb-6 text-gray-800;
     }
     .label-style {
-      @apply text-2xl font-bold mb-6 text-gray-800;
+      @apply block text-gray-700 text-sm font-bold mb-2;
+    }
+
+    .guidance-style {
+      @apply block text-gray-700 text-sm italic mb-4;
     }
   }

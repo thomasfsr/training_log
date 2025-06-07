@@ -74,8 +74,9 @@ pub fn main() !void {
 // - html -
     router.get("/", index, .{});
     router.get("/login", login, .{});
+    router.get("/register", register, .{});
+    router.put("/writing_user", writing_user, .{});
     router.put("/auth", auth, .{});
-    // router.get("/user/:id", getUser, .{});
     router.get("/error", @"error", .{});
 
 // - run - 
@@ -89,31 +90,20 @@ const BcryptResult = struct {
     salt: [16]u8,
 };
 
-// fn bcrypt_encoder(pwd: []const u8) ![]const u8 {
-//     const params = std.crypto.pwhash.bcrypt.Params.owasp;
-//     const salt_length = 16;
-//     var salt: [salt_length]u8 = undefined;
-//     std.crypto.random.bytes(&salt);
-//     const hashed_pwd = std.crypto.pwhash.bcrypt.bcrypt(pwd, salt, params);
-//     return &hashed_pwd;
-// }
-
-fn bcrypt_encoder(pwd: []const u8) ![]const u8 {
-    var out: [60]u8 = undefined;
-    const options: std.crypto.pwhash.bcrypt.HashOptions = .{
+fn bcrypt_encoder(pwd: []const u8, alloc: std.mem.Allocator) ![]const u8 {
+    const buf = try alloc.alloc(u8, 60);
+    const options = std.crypto.pwhash.bcrypt.HashOptions{
         .params = std.crypto.pwhash.bcrypt.Params.owasp,
         .encoding = std.crypto.pwhash.Encoding.crypt};
 
-    const hash = try std.crypto.pwhash.bcrypt.strHash(pwd, options, &out);
-    return hash;
+    const hashed = try std.crypto.pwhash.bcrypt.strHash(pwd, options, buf);
+    return hashed;
 }
 
 fn bcrypt_verify(str: []const u8, pwd: []const u8) bool {
-    const options: std.crypto.pwhash.bcrypt.HashOptions = .{
-        .params = std.crypto.pwhash.bcrypt.Params.owasp,
-        .encoding = std.crypto.pwhash.Encoding.crypt};
-
-    return std.crypto.pwhash.bcrypt.strVerify(str, pwd, options) catch false;
+    const options: std.crypto.pwhash.bcrypt.VerifyOptions = .{.silently_truncate_password=false};
+    std.crypto.pwhash.bcrypt.strVerify(str, pwd, options) catch {return false;};
+    return true;
 }
 
 pub fn generateUUIDv4(allocator: std.mem.Allocator) ![]const u8 {
@@ -172,85 +162,141 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     const html_auth = @embedFile("static/auth.html");
 
-    var email: []const u8 = "";
-    var password: []const u8 = "";
-    var hashed_pwd: []const u8 = "";
-    // var salt_pwd: [16]u8 = undefined;
+    var input_email: []const u8 = "";
+    var input_password: []const u8 = "";
 
     while (it.next()) |kv| {
         if (std.mem.eql(u8, kv.key, "email")) {
-            email = kv.value;
+            input_email = kv.value;
         }
         if (std.mem.eql(u8, kv.key, "password")) {
-            password = kv.value;
+            input_password = kv.value;
         }
     }
 
-    if (email.len == 0 or password.len == 0) {
+    if (input_email.len == 0 or input_password.len == 0) {
         res.status = 200;
         res.content_type = .HTML;
         res.body = "Missing email or password";
         return;
     }
-    if (email.len > 0 and password.len > 0) {
-        const row = try app.pool.row("select first_name, last_name, email from users where email = $1", .{email});
-        hashed_pwd = try bcrypt_encoder(password);
+    if (input_email.len > 0 and input_password.len > 0) {
+        const row = try app.pool.row("select id, email, hashed_pwd, first_name, last_name from users where email = $1", .{input_email});
+        // hashed_pwd = try bcrypt_encoder(password);
 
     if (row) |r| {
-        const user_first_name = r.get([]u8, 0);
-        const user_last_name = r.get([]u8, 1);
-        const user_email = r.get([]u8, 2);
+        const user_id = r.get([]u8, 0);
+        const user_email = r.get([]u8, 1);
+        const user_hashed_pwd = r.get([]u8, 2);
+        const user_first_name = r.get([]u8, 3);
+        const user_last_name = r.get([]u8, 4);
 
-        const template = try std.mem.replaceOwned(u8, res.arena, html_auth,"{s}", "User {fn} {ln} has the email {em}");
-        const first_name_replaced = try std.mem.replaceOwned(u8, res.arena, template,"{fn}", user_first_name);
-        const last_name_replaced = try std.mem.replaceOwned(u8, res.arena, first_name_replaced,"{ln}", user_last_name);
-        const email_replaced = try std.mem.replaceOwned(u8, res.arena, last_name_replaced,"{em}", user_email);
+        const valid_password = bcrypt_verify(user_hashed_pwd, input_password);
 
-        const session_token = try generateUUIDv4(res.arena);
+        if (valid_password) {
+            const template = try std.mem.replaceOwned(u8, res.arena, html_auth,"{s}", "User {fn} {ln} has the email {em}");
+            const first_name_replaced = try std.mem.replaceOwned(u8, res.arena, template,"{fn}", user_first_name);
+            const last_name_replaced = try std.mem.replaceOwned(u8, res.arena, first_name_replaced,"{ln}", user_last_name);
+            const email_replaced = try std.mem.replaceOwned(u8, res.arena, last_name_replaced,"{em}", user_email);
 
-        const cookie_options = httpz.response.CookieOpts{
-            .path = "/",
-            .domain = "",
-            .max_age = 600,
-            .secure = false, // in production set to true (https only)
-            .http_only = true,
-            .partitioned= false,
-            .same_site = .lax,
-            };
+            const session_token = try generateUUIDv4(res.arena);
+
+            _ = try app.pool.exec("INSERT INTO session_state VALUES ($1, $2)", .{session_token, user_id});
+
+            const cookie_options = httpz.response.CookieOpts{
+                .path = "/",
+                .domain = "",
+                .max_age = 600,
+                .secure = false, // in production set to true (https only)
+                .http_only = true,
+                .partitioned= false,
+                .same_site = .lax,
+                };
             
-        try res.setCookie("session_token", session_token, cookie_options);
-        res.body = email_replaced;
-        res.status = 200;
-        res.content_type = .HTML;
-        return;
+            try res.setCookie("session_token", session_token, cookie_options);
+            res.body = email_replaced;
+            res.status = 200;
+            res.content_type = .HTML;
+            return;
+            }
+        if (valid_password == false) {
+            const template = try std.mem.replaceOwned(u8, res.arena, html_auth,"{s}", "Password wrong!");
+            res.body = template;
+            res.status = 200;
+            res.content_type = .HTML;
+            return;
+        }
         }
 
     if (row == null) {
-        const template = try std.mem.replaceOwned(u8, res.arena, html_auth,"{s}", "User not found. {em} {hpwd}");
-        const email_replaced = try std.mem.replaceOwned(u8, res.arena, template,"{em}", email);
-        const hashed_pwd_replaced = try std.mem.replaceOwned(u8, res.arena, email_replaced,"{hpwd}", hashed_pwd[0..]);
-        res.body = hashed_pwd_replaced;
+        const template = try std.mem.replaceOwned(u8, res.arena, html_auth,"{s}", "User not found. {em}");
+        const email_replaced = try std.mem.replaceOwned(u8, res.arena, template,"{em}", input_email);
+        res.body = email_replaced;
         res.status = 200;
         res.content_type = .HTML;
         }
     }
 }
 
+fn register(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
+    const html_register = @embedFile("static/register.html");
+    res.status = 200;
+    res.content_type = .HTML;
+    res.body = html_register;
+}
 
-// fn getUser(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-//     const user_id = req.param("id").?;
+fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    var it = (try req.formData()).iterator();
 
-//     const row = try app.pool.row("select first_name, last_name from users where id = $1", .{user_id});
-    
+    var input_email: []const u8 = "";
+    var input_password: []const u8 = "";
+    var input_first_name: []const u8 = "";
+    var input_last_name: []const u8 = "";
 
-//     if (row) |r| {
-//         try res.json(.{
-//             .first_name = r.get([]u8, 0), 
-//             .last_name = r.get([]u8, 1) 
-//             }, .{});
-//     } 
-//     else {
-//         res.status = 404;
-//         res.body = "User not found";
-//     }
-// }
+    while (it.next()) |kv| {
+        if (std.mem.eql(u8, kv.key, "email")) {
+            input_email = kv.value;
+        }
+        if (std.mem.eql(u8, kv.key, "password")) {
+            input_password = kv.value;
+        }
+        if (std.mem.eql(u8, kv.key, "first_name")) {
+            input_first_name = kv.value;
+        }
+        if (std.mem.eql(u8, kv.key, "last_name")) {
+            input_last_name = kv.value;
+        }   
+    }
+
+    if (input_email.len == 0 or input_password.len == 0) {
+        res.status = 200;
+        res.content_type = .HTML;
+        res.body = "Missing email or password";
+        return;
+    }
+
+    if (input_email.len > 0 and input_password.len > 0) {
+        const uuid = try generateUUIDv4(res.arena);
+        const role = "user";
+        const hashed_pwd = try bcrypt_encoder(input_password, res.arena);
+        
+        _ = app.pool.exec("INSERT INTO users (id, first_name, last_name, email, user_role, hashed_pwd) VALUES ($1::uuid, $2, $3, $4, $5, $6);", 
+        .{
+                uuid,
+                input_first_name,
+                input_last_name,
+                input_email,
+                role,
+                hashed_pwd}) catch |err| {
+                    std.debug.print("Database error: {}\n", .{err});
+                    res.status = 200;
+                    const hash_debug = try std.mem.replaceOwned(u8, res.arena, "hashed {s}", "{s}", hashed_pwd);
+                    res.body = hash_debug;
+                    return;
+                };
+        res.status = 200;
+        res.content_type = .HTML;
+        res.body = "Sucessfully Registered!";
+    }
+
+}

@@ -1,32 +1,66 @@
 <div id="content" class="centered-form-inner">
     <h2 class="page-title">Login</h2>
     <form
-        hx-put="/auth" 
+        hx-put="/writing_user" 
         hx-target="#content" 
         hx-swap="outerHTML"
-        hx-boost="true"
-        hx-trigger="submit">
+        hx-trigger="submit"
+        id="registration-form">
 
-        <div class="mb-4" id="email">
-            <label class="label-style">
+        <div class="mb-4">
+            <label for="first_name" class="label-style">
+                First Name
+            </label>
+            <input
+                type="text"  
+                id="first_name"
+                name="first_name"
+                class="input-style"
+                maxlength="50"
+                autocomplete="given-name"
+                required
+            >
+        </div>
+        <div class="mb-4">
+            <label for= "last_name" class="label-style">
+                Last Name
+            </label>
+            <input 
+                type="text"  
+                id="last_name"
+                name="last_name"
+                class="input-style"
+                maxlength="50"
+                autocomplete="family-name"
+                required
+            >
+        </div>
+        <div class="mb-4">
+            <label for="email" class="label-style">
                 Email
             </label>
             <input 
+                id="email"
                 type="email"  
                 name="email"
                 class="input-style"
                 required
+                autocomplete="email"
             >
         </div>
-        <div class="mb-4" id="password">
-            <label class="label-style">
+        <div class="mb-4">
+            <label for="password" class="label-style">
                 Password
             </label>
             <input 
-                type="password"  
+                type="password"
+                id="password"
                 name="password"
                 class="input-style"
                 required
+                autocomplete="new-password"
+                minlength="8"
+                maxlength="50"
             >
         </div>
         <div class="flex items-center justify-between">
@@ -34,9 +68,10 @@
                 class="purple-button"
                 type="submit"
             >
-                Sign In
+                Register
             </button>
             <button 
+                type="button"
                 hx-get="/" 
                 hx-target="#content"
                 hx-swap="outerHTML"
