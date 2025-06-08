@@ -3,33 +3,46 @@
 @tailwindss components;
 
 @layer components {
-    .centered-body {
+    .centered_body_style {
       @apply bg-gray-100 min-h-screen flex items-center justify-center;
     }
-    .centered-form {
+    .centered_form_style {
       @apply min-h-screen flex items-center justify-center;
     }
-    .centered-form-inner {
+    .centered_form_inner_style {
       @apply bg-white p-8 rounded shadow-md;
     }
-    .purple-button {
+    .button_style {
       @apply bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 
       hover:to-green-600 text-white px-4 py-2 rounded transition-all duration-300 
       justify-center;
     }
-    .input-style {
+    .form_input_style {
       @apply shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 
       leading-tight;
     }
-
-    .page-title {
+    .page_title_style {
       @apply text-2xl font-bold mb-6 text-gray-800;
     }
-    .label-style {
+    .label_input_style {
       @apply block text-gray-700 text-sm font-bold mb-2;
     }
-
-    .guidance-style {
+    .guidance_style {
       @apply block text-gray-700 text-sm italic mb-4;
+    }
+    .tr_style {
+      @apply hover:bg-gray-50;
+    }
+    .td_style {
+      @apply py-3 px-4 border-t border-gray-200;
+    }
+    .tb_input_style {
+      @apply w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500;
+    }
+    .tb_style {
+      @apply min-w-full bg-white border border-gray-200 rounded-lg overflow-hidden mt-4;
+    }
+    .th_style {
+      @apply bg-gray-100 py-3 px-4 text-left font-semibold text-gray-700;
     }
   }
