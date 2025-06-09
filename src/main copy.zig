@@ -66,12 +66,13 @@ pub fn main() !void {
     router.get("/tailwindcss", serve_tailwind, .{});
 
 // - html -
+    router.get("/error", @"error", .{});
     router.get("/", index, .{});
     router.get("/login", login, .{});
     router.get("/register", register, .{});
     router.put("/writing_user", writing_user, .{});
     router.put("/dashboard", dashboard, .{});
-    router.get("/error", @"error", .{});
+    
 
 // - run - 
     std.debug.print("listening http://localhost:{d}/\n", .{PORT});
@@ -145,28 +146,15 @@ fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
 }
 
 fn login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true")==false){
-        res.status = 404;
-        res.body = "NOPE!";
-        return;}
-
+    if (req.headers.has("HX-Request")) |hx_bool| {
+        std.debug.print("\n{any}\n", .{hx_bool});
     const html_index = @embedFile("static/login.html");
     res.status = 200;
     res.content_type = .HTML;
-    res.body = html_index;
+    res.body = html_index;}
 }
 
-
-
 fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-
-    const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true")==false){
-        res.status = 404;
-        res.body = "NOPE!";
-        return;}
-
     var it = (try req.formData()).iterator();
 
     const html_auth = @embedFile("static/dashboard.html");
@@ -247,13 +235,7 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     }
 }
 
-fn register(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true")==false){
-        res.status = 404;
-        res.body = "NOPE!";
-        return;}
-
+fn register(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     const html_register = @embedFile("static/register.html");
     res.status = 200;
     res.content_type = .HTML;
@@ -261,12 +243,6 @@ fn register(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
 }
 
 fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true")==false){
-        res.status = 404;
-        res.body = "NOPE!";
-        return;}
-
     var it = (try req.formData()).iterator();
 
     var input_email: []const u8 = "";
