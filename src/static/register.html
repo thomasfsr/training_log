@@ -1,5 +1,5 @@
 <div id="content" class="centered-form-inner">
-    <h2 class="page-title">Login</h2>
+    <h2 class="page_title_style">Login</h2>
     <form
         hx-put="/writing_user" 
         hx-target="#content" 
@@ -8,55 +8,55 @@
         id="registration-form">
 
         <div class="mb-4">
-            <label for="first_name" class="label-style">
+            <label for="first_name" class="label_style">
                 First Name
             </label>
             <input
                 type="text"  
                 id="first_name"
                 name="first_name"
-                class="input-style"
+                class="form_input_style"
                 maxlength="50"
                 autocomplete="given-name"
                 required
             >
         </div>
         <div class="mb-4">
-            <label for= "last_name" class="label-style">
+            <label for= "last_name" class="label_style">
                 Last Name
             </label>
             <input 
                 type="text"  
                 id="last_name"
                 name="last_name"
-                class="input-style"
+                class="form_input_style"
                 maxlength="50"
                 autocomplete="family-name"
                 required
             >
         </div>
         <div class="mb-4">
-            <label for="email" class="label-style">
+            <label for="email" class="label_style">
                 Email
             </label>
             <input 
                 id="email"
                 type="email"  
                 name="email"
-                class="input-style"
+                class="form_input_style"
                 required
                 autocomplete="email"
             >
         </div>
         <div class="mb-4">
-            <label for="password" class="label-style">
+            <label for="password" class="label_style">
                 Password
             </label>
             <input 
                 type="password"
                 id="password"
                 name="password"
-                class="input-style"
+                class="form_input_style"
                 required
                 autocomplete="new-password"
                 minlength="8"
@@ -65,7 +65,7 @@
         </div>
         <div class="flex items-center justify-between">
             <button
-                class="purple-button"
+                class="button_style"
                 type="submit"
             >
                 Register
@@ -75,7 +75,7 @@
                 hx-get="/" 
                 hx-target="#content"
                 hx-swap="outerHTML"
-                class="purple-button"
+                class="button_style"
             >
                 Back
             </button>

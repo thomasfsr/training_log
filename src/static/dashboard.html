@@ -1,52 +1,89 @@
-<div class="centered_form_inner" id = "content">
-    <p id="auth-response"> {s} </p>
+<div class="centered_form_inner_style grid-rows-3" id="content">
+
+  <script>
+    document.getElementById('date').valueAsDate = new Date();
+  </script>
+
+  <div class="flex items-center justify-between mb-4 row-span-1">  
+    <div id="auth-response">{s}</div> 
     <button 
-    hx-get="/login" 
-    hx-target="#content"
-    hx-swap="outerHTML"
-    class="button_style">Back
+      hx-get="/" 
+      hx-target="#content"
+      hx-swap="outerHTML"
+      class="button_style"
+    >
+      Back
     </button>
-  <table class="tb_style">
-    <thead>
-      <tr>
-        <th class="th_style">Exercise</th>
-        <th class="th_style">Weight (kg)</th>
-        <th class="th_style">Sets</th>
-        <th class="th_style">Reps</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr class=ts_style>
-        <td class="td_style">
-          <input 
-            type="text" 
-            placeholder="e.g., Bench Press" 
-            class="tb_input_style"
-          >
-        </td>
-        <td class="td_style">
-          <input 
-            type="number" 
-            placeholder="0" 
-            class="tb_input_style"
-          >
-        </td>
-        <td class="td_style">
-          <input 
-            type="number" 
-            placeholder="0" 
-            class="tb_input_style"
-          >
-        </td>
-        <td class="td_style">
-          <input 
-            type="number" 
-            placeholder="0" 
-            class="tb_input_style"
-          >
-        </td>
-      </tr>
-    </tbody>
-  </table>
+  </div>
+
+  <form 
+    hx-post="/submit-workout" 
+    hx-target="#auth-response" 
+    hx-swap="innerHTML"
+    class="flex items-center gap-4 centered_form row-span-2"
+    title="New Exercise"
+  >
+    <div class="flex-auto">
+      <label for="exercise" class="label_input_style">Exercise</label>
+      <input
+        type="text"
+        id="exercise"
+        name="exercise"
+        placeholder="e.g., Bench Press"
+        class="form_input_style"
+        required
+      >
+    </div>
+
+    <div class="flex-auto">
+      <label for="weight" class="label_input_style">Weight (kg)</label>
+      <input
+        type="number"
+        id="weight"
+        name="weight"
+        placeholder="0"
+        class="form_input_style"
+        required
+      >
+    </div>
+
+    <div class="flex-auto">
+      <label for="sets" class="label_input_style">Sets</label>
+      <input
+        type="number"
+        id="sets"
+        name="sets"
+        placeholder="0"
+        class="form_input_style"
+        required
+      >
+    </div>
+
+    <div class="flex-auto">
+      <label for="reps" class="label_input_style">Reps</label>
+      <input
+        type="number"
+        id="reps"
+        name="reps"
+        placeholder="0"
+        class="form_input_style"
+        required
+      >
+    </div>
+    <div class="flex-auto">
+      <label for="date" class="label_input_style">Date</label>
+      <input type="date" id="date" name="date" class="form_input_style">
+    </div>
+    <div class="self-end">
+      <button
+        type="submit"
+        class="button_style"
+      >
+        Save
+      </button>
+    </div>
+  </form>
+<!-- table for showing the data of the user -->
+<div id="exercise_table" class="row-span-3" hx-get="/exercise_table"></div>
 
 </div>

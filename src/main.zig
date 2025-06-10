@@ -66,8 +66,8 @@ pub fn main() !void {
     router.get("/tailwindcss", serve_tailwind, .{});
 
 // - html -
-    router.get("/", index, .{});
-    router.get("/login", login, .{});
+    router.get("/", login, .{});
+    // router.get("/login", login, .{});
     router.get("/register", register, .{});
     router.put("/writing_user", writing_user, .{});
     router.put("/dashboard", dashboard, .{});
@@ -144,12 +144,12 @@ fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     res.body = html_index;
 }
 
-fn login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true")==false){
-        res.status = 404;
-        res.body = "NOPE!";
-        return;}
+fn login(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
+    // const is_hx = req.headers.get("hx-request") orelse "false";
+    // if (std.mem.eql(u8, is_hx, "true")==false){
+    //     res.status = 404;
+    //     res.body = "NOPE!";
+    //     return;}
 
     const html_index = @embedFile("static/login.html");
     res.status = 200;
@@ -229,20 +229,27 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             return;
             }
         if (valid_password == false) {
-            const template = try std.mem.replaceOwned(u8, res.arena, html_auth,"{s}", "Password wrong!");
-            res.body = template;
+            const html_index = @embedFile("static/login.html");
+            const html_index2 = try std.mem.replaceOwned(u8, res.arena, html_index,"hidden", "");
             res.status = 200;
             res.content_type = .HTML;
+            res.body = html_index2;
             return;
+
+            // const template = try std.mem.replaceOwned(u8, res.arena, html_auth,"{s}", "Password wrong!");
+            // res.body = template;
+            // res.status = 200;
+            // res.content_type = .HTML;
+            // return;
         }
-        }
+    }
 
     if (row == null) {
-        const template = try std.mem.replaceOwned(u8, res.arena, html_auth,"{s}", "User not found. {em}");
-        const email_replaced = try std.mem.replaceOwned(u8, res.arena, template,"{em}", input_email);
-        res.body = email_replaced;
+        const html_index = @embedFile("static/login.html");
+
         res.status = 200;
         res.content_type = .HTML;
+        res.body = html_index;
         }
     }
 }

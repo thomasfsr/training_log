@@ -43,6 +43,6 @@
       @apply min-w-full bg-white border border-gray-200 rounded-lg overflow-hidden mt-4;
     }
     .th_style {
-      @apply bg-gray-100 py-3 px-4 text-left font-semibold text-gray-700;
+      @apply bg-gray-100 py-3 px-4 text-left text-gray-700 text-sm font-bold mb-2;
     }
   }

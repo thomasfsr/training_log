@@ -1,14 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Zig + HTMX</title>
+    <script src="https://unpkg.com/htmx.org"></script>
+    <link href="/tailwindcss" rel="stylesheet">
+</head>
+<div class="centered_body_style text-center">
 <div id="content" class="centered_form_inner_style">
-    <h2 class="page_title_style">Login</h2>
+    <h2 class="page_title_style flex flex-col">Login</h2>
     <form
         hx-put="/dashboard" 
         hx-target="#content" 
         hx-swap="outerHTML"
-        hx-boost="true"
         hx-trigger="submit">
 
         <div class="mb-4" id="email">
-            <label class="label_style">
+            <label class="label_input_style">
                 Email
             </label>
             <input 
@@ -18,7 +25,7 @@
                 required>
         </div>
         <div class="mb-4" id="password">
-            <label class="label_style">
+            <label class="label_input_style">
                 Password
             </label>
             <input 
@@ -27,23 +34,28 @@
                 class = "form_input_style"
                 required>
         </div>
-        <div class="flex items-center justify-between">
+
+        <div class="mb-4 h-6 text-red-500" hidden> Password or Email invalid!</div>
+
+        <div class="flex items-center justify-between flex flex-col">
             <button
-                class="button_style"
+                class="button_style justify-between items-center"
                 type="submit">
                 Sign In
             </button>
-            <button hx-get="/" hx-target="#content" hx-swap="outerHTML" class="button_style">
+            <!-- <button hx-get="/" hx-target="#content" hx-swap="outerHTML" class="button_style">
                 Back
-            </button>
+            </button> -->
         </div>
     </form>
 
-    <p class= "mt-4">
+    <p class= "mt-4 justify-between items-center flex flex-col">
         <label class="guidance_style"> - Are you not registered? Register here - </label>
-        <button hx-get="/register" hx-target="#content" hx-swap="outerHTML" class="button_style">
+        <button hx-get="/register" hx-target="#content" hx-swap="outerHTML" class="button_style justify-between items-center">
             Register
         </button>
     </p>
+
+</div>
 
 </div>
