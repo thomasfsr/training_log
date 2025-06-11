@@ -1,6 +1,7 @@
 const pg = @import("pg");
 const std = @import("std");
 const httpz = @import("httpz");
+const print = std.debug.print;
 
 //------------------------- BaseModels --------------------------------------
 
@@ -67,10 +68,12 @@ pub fn main() !void {
 
 // - html -
     router.get("/", login, .{});
-    // router.get("/login", login, .{});
     router.get("/register", register, .{});
     router.put("/writing_user", writing_user, .{});
     router.put("/dashboard", dashboard, .{});
+    router.get("/workout_table", workout_table, .{});
+    router.put("/submit_workout", submit_workout, .{});
+
     router.get("/error", @"error", .{});
 
 // - run - 
@@ -110,7 +113,7 @@ pub fn generateUUIDv4(allocator: std.mem.Allocator) ![]const u8 {
     bytes[8] = (bytes[8] & 0x3F) | 0x80;
 
     // 3. Format as UUID string
-    return std.fmt.allocPrint(allocator, 
+    const result = try std.fmt.allocPrint(allocator, 
         "{s}-{s}-{s}-{s}-{s}", .{
             std.fmt.fmtSliceHexLower(bytes[0..4]),   // First segment (8 chars)
             std.fmt.fmtSliceHexLower(bytes[4..6]),   // Second segment (4 chars)
@@ -119,6 +122,8 @@ pub fn generateUUIDv4(allocator: std.mem.Allocator) ![]const u8 {
             std.fmt.fmtSliceHexLower(bytes[10..16]), // Fifth segment (12 chars)
         }
     );
+    print("{s}", .{result});
+    return result;
 }
 
 //------------------------- Functions --------------------------------------
@@ -145,12 +150,6 @@ fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
 }
 
 fn login(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
-    // const is_hx = req.headers.get("hx-request") orelse "false";
-    // if (std.mem.eql(u8, is_hx, "true")==false){
-    //     res.status = 404;
-    //     res.body = "NOPE!";
-    //     return;}
-
     const html_index = @embedFile("static/login.html");
     res.status = 200;
     res.content_type = .HTML;
@@ -221,8 +220,18 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
                 .partitioned= false,
                 .same_site = .lax,
                 };
-            
+            print("{s}\n\n", .{user_id});
+            print("{x}\n\n", .{user_id});
+            const user_id_str = try std.fmt.allocPrint(res.arena,
+                                                        "{s}-{s}-{s}-{s}-{s}",.{
+                                                            std.fmt.fmtSliceHexLower(user_id[0..4]),
+                                                            std.fmt.fmtSliceHexLower(user_id[4..6]),
+                                                            std.fmt.fmtSliceHexLower(user_id[6..8]),
+                                                            std.fmt.fmtSliceHexLower(user_id[8..10]),
+                                                            std.fmt.fmtSliceHexLower(user_id[10..16]),});
+            print("{s}\n\n", .{user_id_str});
             try res.setCookie("session_token", session_token, cookie_options);
+            try res.setCookie("user_id", user_id_str, cookie_options);
             res.body = email_replaced;
             res.status = 200;
             res.content_type = .HTML;
@@ -296,13 +305,6 @@ fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         }   
     }
 
-    if (input_email.len == 0 or input_password.len == 0) {
-        res.status = 200;
-        res.content_type = .HTML;
-        res.body = "Missing email or password";
-        return;
-    }
-
     if (input_email.len > 0 and input_password.len > 0) {
         const uuid = try generateUUIDv4(res.arena);
         const role = "user";
@@ -327,4 +329,60 @@ fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         res.body = "Sucessfully Registered!";
     }
 
+}
+
+fn workout_table(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
+    const html_table = @embedFile("static/workout_table.html");
+    res.status = 200;
+    res.content_type = .HTML;
+    res.body = html_table;
+}
+
+fn submit_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    const is_hx = req.headers.get("hx-request") orelse "false";
+    if (std.mem.eql(u8, is_hx, "true")==false){
+        res.status = 404;
+        res.body = "NOPE!";
+        return;}
+    
+    const user_id = req.cookies().get("user_id") orelse "";
+
+    var it = (try req.formData()).iterator();
+
+    var exercise: []const u8 = "";
+    var weight: []const u8 = "";
+    var sets: []const u8 = "";
+    var reps: []const u8 = "";
+
+    while (it.next()) |kv| {
+        if (std.mem.eql(u8, kv.key, "exercise")) {
+            exercise = kv.value;
+        }
+        if (std.mem.eql(u8, kv.key, "weight")) {
+            weight = kv.value;
+        }
+        if (std.mem.eql(u8, kv.key, "sets")) {
+            sets = kv.value;
+        }
+        if (std.mem.eql(u8, kv.key, "reps")) {
+            reps = kv.value;
+        }   
+    }
+    print("{s}", .{user_id});
+    if (exercise.len > 0) {   
+        _ = app.pool.exec("INSERT INTO workout_logs (user_id, exercise, weight, sets, reps) VALUES ($1, $2, $3, $4, $5);", 
+        .{
+                user_id,
+                exercise,
+                weight,
+                sets,
+                reps}) catch |err| {
+                    std.debug.print("Database error: {}\n", .{err});
+                    res.status = 400;
+                    return;
+                };
+        res.status = 200;
+        res.content_type = .HTML;
+        res.body = "Sucessfully Registered!";
+    }
 }

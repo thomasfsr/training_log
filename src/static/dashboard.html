@@ -17,9 +17,8 @@
   </div>
 
   <form 
-    hx-post="/submit-workout" 
-    hx-target="#auth-response" 
-    hx-swap="innerHTML"
+    hx-put="/submit_workout" 
+    hx-swap="none"
     class="flex items-center gap-4 centered_form row-span-2"
     title="New Exercise"
   >
@@ -84,6 +83,11 @@
     </div>
   </form>
 <!-- table for showing the data of the user -->
-<div id="exercise_table" class="row-span-3" hx-get="/exercise_table"></div>
+<div id="workout_table" 
+class="row-span-3" 
+hx-get="/workout_table" 
+target="#workout_table" 
+hx-swap="outerHTML"
+hx-trigger="load"> </div>
 
 </div>
