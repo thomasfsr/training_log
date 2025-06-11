@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS workout_logs (
     id SERIAL PRIMARY KEY,
     user_id UUID,
     exercise VARCHAR(50) NOT NULL,
-    weight DECIMAL(10,2),
+    weight INTEGER,
     sets INTEGER,
     reps INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

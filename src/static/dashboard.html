@@ -17,10 +17,11 @@
   </div>
 
   <form 
+    id="new_exercise_form"
     hx-put="/submit_workout" 
     hx-swap="none"
     class="flex items-center gap-4 centered_form row-span-2"
-    title="New Exercise"
+    title="Add New Exercise"
   >
     <div class="flex-auto">
       <label for="exercise" class="label_input_style">Exercise</label>
@@ -83,11 +84,23 @@
     </div>
   </form>
 <!-- table for showing the data of the user -->
-<div id="workout_table" 
-class="row-span-3" 
-hx-get="/workout_table" 
-target="#workout_table" 
-hx-swap="outerHTML"
-hx-trigger="load"> </div>
 
+<table class="tb_style row-span-3" id="exercise_table">
+  <thead>
+    <tr>
+      <th class="th_style">Exercise</th>
+      <th class="th_style">Weight (kg)</th>
+      <th class="th_style">Sets</th>
+      <th class="th_style">Reps</th>
+      <th class="th_style">Created At (Y-m-d)</th>
+      <th class="th_style">Delete it</th>
+    </tr>
+  </thead>
+  <tbody id="workout_body" 
+  class="row-span-3"
+  hx-get="/cell_workout"
+  hx-swap="innerHTML"
+  hx-trigger="load, submit from:#new_exercise_form">
+  </tbody>
+</table>
 </div>

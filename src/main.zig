@@ -3,6 +3,10 @@ const std = @import("std");
 const httpz = @import("httpz");
 const print = std.debug.print;
 
+const c = @cImport({
+    @cInclude("time.h");
+});
+
 //------------------------- BaseModels --------------------------------------
 
 const App = struct {
@@ -12,9 +16,10 @@ const App = struct {
         res.body = "NOPE!";
     }
     pub fn uncaughtError(_: *App, req: *httpz.Request, res: *httpz.Response, err: anyerror) void {
-    std.debug.print("uncaught http error at {s}: {}\n", .{ req.url.path, err });
-    res.status = 505;
-    res.body = "<!DOCTYPE html>(╯°□°)╯︵ ┻━┻";}
+        std.debug.print("uncaught http error at {s}: {}\n", .{ req.url.path, err });
+        res.status = 505;
+        res.body = "<!DOCTYPE html>(╯□°)╯︵ ┻━┻";
+    }
 };
 
 const User = struct {
@@ -25,58 +30,53 @@ const User = struct {
 //------------------------- Main --------------------------------------------
 pub fn main() !void {
 
-// - Allocation -
+    // - Allocation -
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-// - Postgres -
-    var pool = try pg.Pool.init(
-        allocator, .{
-            .size = 10,
-            .connect = .{
-                .port = 5432,
-                .host = "127.0.0.1"},
-            
-            .auth = .{
-                .username = "thomasfsr91", 
-                .database = "training_db", 
-                .password = "feliz1989",
-                .timeout = 10_000,
-            } });
-    
+    // - Postgres -
+    var pool = try pg.Pool.init(allocator, .{ .size = 10, .connect = .{ .port = 5432, .host = "127.0.0.1" }, .auth = .{
+        .username = "thomasfsr91",
+        .database = "training_db",
+        .password = "feliz1989",
+        .timeout = 10_000,
+    } });
+
     defer pool.deinit();
 
-// - Handler - 
-    var app = App{.pool = pool};
+    // - Handler -
+    var app = App{ .pool = pool };
 
-// - server -
+    // - server -
     const PORT = 3000;
     var server = try httpz.Server(*App).init(
         allocator,
         .{
             .port = PORT,
-            .request = .{.max_form_count = 20},
-        },&app,
-        );
-    
+            .request = .{ .max_form_count = 20 },
+        },
+        &app,
+    );
+
     defer server.deinit();
     defer server.stop();
     var router = try server.router(.{});
 
-// - css - 
+    // - css -
     router.get("/tailwindcss", serve_tailwind, .{});
 
-// - html -
+    // - html -
     router.get("/", login, .{});
     router.get("/register", register, .{});
     router.put("/writing_user", writing_user, .{});
     router.put("/dashboard", dashboard, .{});
-    router.get("/workout_table", workout_table, .{});
+    // router.get("/workout_table", workout_table, .{});
     router.put("/submit_workout", submit_workout, .{});
+    router.get("/cell_workout", cell_workout, .{});
 
     router.get("/error", @"error", .{});
 
-// - run - 
+    // - run -
     std.debug.print("listening http://localhost:{d}/\n", .{PORT});
     try server.listen();
 }
@@ -89,21 +89,21 @@ const BcryptResult = struct {
 
 fn bcrypt_encoder(pwd: []const u8, alloc: std.mem.Allocator) ![]const u8 {
     const buf = try alloc.alloc(u8, 60);
-    const options = std.crypto.pwhash.bcrypt.HashOptions{
-        .params = std.crypto.pwhash.bcrypt.Params.owasp,
-        .encoding = std.crypto.pwhash.Encoding.crypt};
+    const options = std.crypto.pwhash.bcrypt.HashOptions{ .params = std.crypto.pwhash.bcrypt.Params.owasp, .encoding = std.crypto.pwhash.Encoding.crypt };
 
     const hashed = try std.crypto.pwhash.bcrypt.strHash(pwd, options, buf);
     return hashed;
 }
 
 fn bcrypt_verify(str: []const u8, pwd: []const u8) bool {
-    const options: std.crypto.pwhash.bcrypt.VerifyOptions = .{.silently_truncate_password=false};
-    std.crypto.pwhash.bcrypt.strVerify(str, pwd, options) catch {return false;};
+    const options: std.crypto.pwhash.bcrypt.VerifyOptions = .{ .silently_truncate_password = false };
+    std.crypto.pwhash.bcrypt.strVerify(str, pwd, options) catch {
+        return false;
+    };
     return true;
 }
 
-pub fn generateUUIDv4(allocator: std.mem.Allocator) ![]const u8 {
+fn generateUUIDv4(allocator: std.mem.Allocator) ![]const u8 {
     // 1. Generate random bytes
     var bytes: [16]u8 = undefined;
     std.crypto.random.bytes(&bytes);
@@ -113,19 +113,27 @@ pub fn generateUUIDv4(allocator: std.mem.Allocator) ![]const u8 {
     bytes[8] = (bytes[8] & 0x3F) | 0x80;
 
     // 3. Format as UUID string
-    const result = try std.fmt.allocPrint(allocator, 
-        "{s}-{s}-{s}-{s}-{s}", .{
-            std.fmt.fmtSliceHexLower(bytes[0..4]),   // First segment (8 chars)
-            std.fmt.fmtSliceHexLower(bytes[4..6]),   // Second segment (4 chars)
-            std.fmt.fmtSliceHexLower(bytes[6..8]),   // Third segment (4 chars)
-            std.fmt.fmtSliceHexLower(bytes[8..10]),  // Fourth segment (4 chars)
-            std.fmt.fmtSliceHexLower(bytes[10..16]), // Fifth segment (12 chars)
-        }
-    );
-    print("{s}", .{result});
+    const result = try std.fmt.allocPrint(allocator, "{s}-{s}-{s}-{s}-{s}", .{
+        std.fmt.fmtSliceHexLower(bytes[0..4]), // First segment (8 chars)
+        std.fmt.fmtSliceHexLower(bytes[4..6]), // Second segment (4 chars)
+        std.fmt.fmtSliceHexLower(bytes[6..8]), // Third segment (4 chars)
+        std.fmt.fmtSliceHexLower(bytes[8..10]), // Fourth segment (4 chars)
+        std.fmt.fmtSliceHexLower(bytes[10..16]), // Fifth segment (12 chars)
+    });
     return result;
 }
 
+fn decodeUUIDv4(allocator: std.mem.Allocator, str: []u8) ![]const u8 {
+    return std.fmt.allocPrint(allocator, "{s}-{s}-{s}-{s}-{s}", .{ std.fmt.fmtSliceHexLower(str[0..4]), std.fmt.fmtSliceHexLower(str[4..6]), std.fmt.fmtSliceHexLower(str[6..8]), std.fmt.fmtSliceHexLower(str[8..10]), std.fmt.fmtSliceHexLower(str[10..16]) });
+}
+
+fn printUnixMicroTimestamp(unix_micro: i64, alloc: std.mem.Allocator) ![]u8 {
+    const seconds = @divFloor(unix_micro, 1_000_000);
+    const tm_ptr = c.gmtime(&seconds);
+    var buffer = try alloc.alloc(u8, 11);
+    _ = c.strftime(&buffer[0], buffer.len, "%Y-%m-%d", tm_ptr);
+    return buffer;
+}
 //------------------------- Functions --------------------------------------
 
 fn @"error"(_: *App, _: *httpz.Request, _: *httpz.Response) !void {
@@ -142,13 +150,6 @@ fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     res.body = contents;
 }
 
-fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
-    const html_index = @embedFile("static/index.html");
-    res.status = 200;
-    res.content_type = .HTML;
-    res.body = html_index;
-}
-
 fn login(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     const html_index = @embedFile("static/login.html");
     res.status = 200;
@@ -156,15 +157,13 @@ fn login(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     res.body = html_index;
 }
 
-
-
 fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-
     const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true")==false){
+    if (std.mem.eql(u8, is_hx, "true") == false) {
         res.status = 404;
         res.body = "NOPE!";
-        return;}
+        return;
+    }
 
     var it = (try req.formData()).iterator();
 
@@ -189,27 +188,34 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     }
     if (input_email.len > 0 and input_password.len > 0) {
-        const row = try app.pool.row("select id, email, hashed_pwd, first_name, last_name from users where email = $1", .{input_email});
-        // hashed_pwd = try bcrypt_encoder(password);
+        var row = try app.pool.row("SELECT id, email, hashed_pwd, first_name, last_name FROM users WHERE email = $1", .{input_email}) orelse {
+            const login_html = @embedFile("static/login.html");
+            const login_with_error_html = try std.mem.replaceOwned(u8, res.arena, login_html, "hidden", "");
+            res.status = 200;
+            res.content_type = .HTML;
+            res.body = login_with_error_html;
+            return;
+        };
 
-    if (row) |r| {
-        const user_id = r.get([]u8, 0);
-        const user_email = r.get([]u8, 1);
-        const user_hashed_pwd = r.get([]u8, 2);
-        const user_first_name = r.get([]u8, 3);
-        const user_last_name = r.get([]u8, 4);
+        defer row.deinit() catch {};
+
+        const bytes_user_id = row.get([]u8, 0);
+        const user_id = try decodeUUIDv4(res.arena, bytes_user_id);
+        const user_email = row.get([]u8, 1);
+        const user_hashed_pwd = row.get([]u8, 2);
+        const user_first_name = row.get([]u8, 3);
+        const user_last_name = row.get([]u8, 4);
 
         const valid_password = bcrypt_verify(user_hashed_pwd, input_password);
 
         if (valid_password) {
-            const template = try std.mem.replaceOwned(u8, res.arena, html_auth,"{s}", "User {fn} {ln} has the email {em}");
-            const first_name_replaced = try std.mem.replaceOwned(u8, res.arena, template,"{fn}", user_first_name);
-            const last_name_replaced = try std.mem.replaceOwned(u8, res.arena, first_name_replaced,"{ln}", user_last_name);
-            const email_replaced = try std.mem.replaceOwned(u8, res.arena, last_name_replaced,"{em}", user_email);
+            const template = try std.mem.replaceOwned(u8, res.arena, html_auth, "{s}", "User {fn} {ln} has the email {em}");
+            const first_name_replaced = try std.mem.replaceOwned(u8, res.arena, template, "{fn}", user_first_name);
+            const last_name_replaced = try std.mem.replaceOwned(u8, res.arena, first_name_replaced, "{ln}", user_last_name);
+            const email_replaced = try std.mem.replaceOwned(u8, res.arena, last_name_replaced, "{em}", user_email);
 
             const session_token = try generateUUIDv4(res.arena);
-
-            _ = try app.pool.exec("INSERT INTO session_state VALUES ($1, $2)", .{session_token, user_id});
+            _ = try app.pool.exec("INSERT INTO session_state VALUES ($1::uuid, $2::uuid)", .{ session_token, user_id });
 
             const cookie_options = httpz.response.CookieOpts{
                 .path = "/",
@@ -217,71 +223,48 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
                 .max_age = 600,
                 .secure = false, // in production set to true (https only)
                 .http_only = true,
-                .partitioned= false,
+                .partitioned = false,
                 .same_site = .lax,
-                };
-            print("{s}\n\n", .{user_id});
-            print("{x}\n\n", .{user_id});
-            const user_id_str = try std.fmt.allocPrint(res.arena,
-                                                        "{s}-{s}-{s}-{s}-{s}",.{
-                                                            std.fmt.fmtSliceHexLower(user_id[0..4]),
-                                                            std.fmt.fmtSliceHexLower(user_id[4..6]),
-                                                            std.fmt.fmtSliceHexLower(user_id[6..8]),
-                                                            std.fmt.fmtSliceHexLower(user_id[8..10]),
-                                                            std.fmt.fmtSliceHexLower(user_id[10..16]),});
-            print("{s}\n\n", .{user_id_str});
+            };
             try res.setCookie("session_token", session_token, cookie_options);
-            try res.setCookie("user_id", user_id_str, cookie_options);
+            try res.setCookie("user_id", user_id, cookie_options);
             res.body = email_replaced;
             res.status = 200;
             res.content_type = .HTML;
             return;
-            }
+        }
         if (valid_password == false) {
-            const html_index = @embedFile("static/login.html");
-            const html_index2 = try std.mem.replaceOwned(u8, res.arena, html_index,"hidden", "");
+            const login_html = @embedFile("static/login.html");
+            const login_with_error_html = try std.mem.replaceOwned(u8, res.arena, login_html, "hidden", "");
             res.status = 200;
             res.content_type = .HTML;
-            res.body = html_index2;
+            res.body = login_with_error_html;
             return;
-
-            // const template = try std.mem.replaceOwned(u8, res.arena, html_auth,"{s}", "Password wrong!");
-            // res.body = template;
-            // res.status = 200;
-            // res.content_type = .HTML;
-            // return;
-        }
-    }
-
-    if (row == null) {
-        const html_index = @embedFile("static/login.html");
-
-        res.status = 200;
-        res.content_type = .HTML;
-        res.body = html_index;
         }
     }
 }
 
 fn register(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true")==false){
+    if (std.mem.eql(u8, is_hx, "true") == false) {
         res.status = 404;
         res.body = "NOPE!";
-        return;}
+        return;
+    }
 
-    const html_register = @embedFile("static/register.html");
+    const register_html = @embedFile("static/register.html");
     res.status = 200;
     res.content_type = .HTML;
-    res.body = html_register;
+    res.body = register_html;
 }
 
 fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true")==false){
+    if (std.mem.eql(u8, is_hx, "true") == false) {
         res.status = 404;
         res.body = "NOPE!";
-        return;}
+        return;
+    }
 
     var it = (try req.formData()).iterator();
 
@@ -302,49 +285,51 @@ fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         }
         if (std.mem.eql(u8, kv.key, "last_name")) {
             input_last_name = kv.value;
-        }   
+        }
     }
 
     if (input_email.len > 0 and input_password.len > 0) {
         const uuid = try generateUUIDv4(res.arena);
         const role = "user";
         const hashed_pwd = try bcrypt_encoder(input_password, res.arena);
-        
-        _ = app.pool.exec("INSERT INTO users (id, first_name, last_name, email, user_role, hashed_pwd) VALUES ($1::uuid, $2, $3, $4, $5, $6);", 
-        .{
-                uuid,
-                input_first_name,
-                input_last_name,
-                input_email,
-                role,
-                hashed_pwd}) catch |err| {
-                    std.debug.print("Database error: {}\n", .{err});
-                    res.status = 200;
-                    const hash_debug = try std.mem.replaceOwned(u8, res.arena, "hashed {s}", "{s}", hashed_pwd);
-                    res.body = hash_debug;
-                    return;
-                };
+
+        _ = app.pool.exec("INSERT INTO users (id, first_name, last_name, email, user_role, hashed_pwd) VALUES ($1::uuid, $2, $3, $4, $5, $6);", .{ uuid, input_first_name, input_last_name, input_email, role, hashed_pwd }) catch |err| {
+            std.debug.print("Database error: {}\n", .{err});
+            res.status = 200;
+            const hash_debug = try std.mem.replaceOwned(u8, res.arena, "hashed {s}", "{s}", hashed_pwd);
+            res.body = hash_debug;
+            return;
+        };
+
+        const login_html = @embedFile("static/login.html");
         res.status = 200;
         res.content_type = .HTML;
-        res.body = "Sucessfully Registered!";
+        res.body = login_html;
     }
-
 }
 
-fn workout_table(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
-    const html_table = @embedFile("static/workout_table.html");
-    res.status = 200;
-    res.content_type = .HTML;
-    res.body = html_table;
-}
+// fn workout_table(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
+//     const is_hx = req.headers.get("hx-request") orelse "false";
+//     if (std.mem.eql(u8, is_hx, "true") == false) {
+//         res.status = 404;
+//         res.body = "NOPE!";
+//         return;
+//     }
+
+//     const wo_table_html = @embedFile("static/workout_table.html");
+//     res.status = 200;
+//     res.content_type = .HTML;
+//     res.body = wo_table_html;
+// }
 
 fn submit_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true")==false){
+    if (std.mem.eql(u8, is_hx, "true") == false) {
         res.status = 404;
         res.body = "NOPE!";
-        return;}
-    
+        return;
+    }
+
     const user_id = req.cookies().get("user_id") orelse "";
 
     var it = (try req.formData()).iterator();
@@ -366,23 +351,60 @@ fn submit_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         }
         if (std.mem.eql(u8, kv.key, "reps")) {
             reps = kv.value;
-        }   
+        }
     }
-    print("{s}", .{user_id});
-    if (exercise.len > 0) {   
-        _ = app.pool.exec("INSERT INTO workout_logs (user_id, exercise, weight, sets, reps) VALUES ($1, $2, $3, $4, $5);", 
-        .{
-                user_id,
-                exercise,
-                weight,
-                sets,
-                reps}) catch |err| {
-                    std.debug.print("Database error: {}\n", .{err});
-                    res.status = 400;
-                    return;
-                };
+    if (exercise.len > 0) {
+        _ = app.pool.exec("INSERT INTO workout_logs (user_id, exercise, weight, sets, reps) VALUES ($1::uuid, $2, $3, $4, $5);", .{ user_id, exercise, weight, sets, reps }) catch |err| {
+            std.debug.print("Database error: {}\n", .{err});
+            res.status = 400;
+            return;
+        };
         res.status = 200;
         res.content_type = .HTML;
         res.body = "Sucessfully Registered!";
     }
+}
+
+fn cell_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    const user_id = req.cookies().get("user_id") orelse "";
+    const wo_data = try app.pool.query("SELECT exercise, weight, sets, reps, created_at FROM workout_logs WHERE user_id = $1::uuid;", .{user_id});
+    defer wo_data.deinit();
+
+    var html = std.ArrayList(u8).init(res.arena);
+    const writer = html.writer();
+
+    while (try wo_data.next()) |row| {
+        const exercise: []u8 = row.get([]u8, 0);
+        const weight: i32 = row.get(i32, 1);
+        const sets: i32 = row.get(i32, 2);
+        const reps: i32 = row.get(i32, 3);
+        const created_at: i64 = row.get(i64, 4);
+        const created_at_str = try printUnixMicroTimestamp(created_at, res.arena);
+        try writer.print(
+            \\<tr class=ts_style>
+            \\  <td class=td_style>
+            \\  {s}
+            \\  </td>
+            \\  <td class=td_style>
+            \\  {d}
+            \\  </td>
+            \\  <td class=td_style>
+            \\  {d}
+            \\  </td>
+            \\  <td class=td_style>
+            \\  {d}
+            \\  </td>
+            \\  <td class=td_style>
+            \\  {s}
+            \\  </td>
+            \\  <td class=td_style>
+            \\      <input type="checkbox" name="delete_it" value="Delete" class="scale-150">
+            \\  </td>
+            \\</tr>
+        , .{ exercise, weight, sets, reps, created_at_str });
+    }
+    res.body = html.items;
+    res.content_type = .HTML;
+    res.status = 200;
+    return;
 }

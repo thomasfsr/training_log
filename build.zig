@@ -75,6 +75,7 @@ pub fn build(b: *std.Build) void {
         .root_module = exe_mod,
     });
 
+    exe.linkLibC();
     exe.root_module.addImport("httpz", httpz.module("httpz"));
     exe.root_module.addImport("pg", pg.module("pg"));
 
