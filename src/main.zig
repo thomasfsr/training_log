@@ -66,7 +66,8 @@ pub fn main() !void {
     router.get("/tailwindcss", serve_tailwind, .{});
 
     // - html -
-    router.get("/", login, .{});
+    router.get("/", index, .{});
+    router.get("/login", login, .{});
     router.get("/register", register, .{});
     router.put("/writing_user", writing_user, .{});
     router.put("/dashboard", dashboard, .{});
@@ -150,11 +151,44 @@ fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     res.body = contents;
 }
 
-fn login(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
-    const html_index = @embedFile("static/login.html");
+fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
+    const html_index = @embedFile("static/index.html");
     res.status = 200;
     res.content_type = .HTML;
     res.body = html_index;
+}
+
+fn login(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    const html_index = @embedFile("static/login.html");
+    const session_token = req.cookies().get("session_token") orelse "";
+
+    if (session_token.len > 0) {
+        print("session_token: {s}\n", .{session_token});
+        var row = try app.pool.row("SELECT created_at FROM session_state WHERE id = $1", .{session_token}) orelse {
+            res.status = 200;
+            res.content_type = .HTML;
+            res.body = html_index;
+            return;
+        };
+        defer row.deinit() catch {};
+        const created_at = row.get(i64, 0);
+        print("created_at: {any}\n", .{created_at});
+        const current_time = std.time.microTimestamp();
+        const count_microseconds = current_time - created_at;
+        // const microseconds_per_day = 86_400_000_000; 
+        const microseconds_per_seconds = 1_000_000; 
+        const days_diff = @divFloor(count_microseconds, microseconds_per_seconds);
+        print("count: {d}\n", .{days_diff});
+        res.status = 200;
+        res.content_type = .HTML;
+        res.body = html_index;
+        return;
+    } else {
+        res.status = 200;
+        res.content_type = .HTML;
+        res.body = html_index;
+        return;
+    }
 }
 
 fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
@@ -215,7 +249,7 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             const email_replaced = try std.mem.replaceOwned(u8, res.arena, last_name_replaced, "{em}", user_email);
 
             const session_token = try generateUUIDv4(res.arena);
-            _ = try app.pool.exec("INSERT INTO session_state VALUES ($1::uuid, $2::uuid)", .{ session_token, user_id });
+            _ = try app.pool.exec("INSERT INTO session_state VALUES ($1::uuid, $2::uuid)", .{ session_token, user_id});
 
             const cookie_options = httpz.response.CookieOpts{
                 .path = "/",

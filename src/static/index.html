@@ -6,17 +6,12 @@
     <link href="/tailwindcss" rel="stylesheet">
 </head>
 <body class="centered_body_style">
-    <div class="text-center" id="content">
-        <div id="auth-container">
-            <button 
-                hx-get="/login" 
-                hx-swap="outerHTML"
-                hx-target="#auth-container"
-                class="button_style"
-            >
-                Login
-            </button>
-        </div>
+    <div class="text-center" 
+         id="content"
+         hx-get="/login" 
+         hx-swap="outerHTML"
+         hx-target="#content"
+         hx-trigger="load">
     </div>
 </body>
 </html>
