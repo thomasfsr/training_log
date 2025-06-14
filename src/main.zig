@@ -27,6 +27,7 @@ const User = struct {
     last_name: []u8,
     email: []u8,
 };
+
 //------------------------- Main --------------------------------------------
 pub fn main() !void {
 
@@ -87,6 +88,14 @@ const BcryptResult = struct {
     hash: [23]u8, // 23 bytes
     salt: [16]u8,
 };
+
+fn load_html(filename: []u8) []u8 {
+    var buffer: [100]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&buffer);
+    const allocator = fba.allocator();
+    const path: []u8 = std.fmt.allocPrint(allocator, "static/{s}.html", .{filename});
+    return @embedFile(path);
+}
 
 fn bcrypt_encoder(pwd: []const u8, alloc: std.mem.Allocator) ![]const u8 {
     const buf = try alloc.alloc(u8, 60);
@@ -152,14 +161,15 @@ fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
 }
 
 fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
-    const html_index = @embedFile("static/index.html");
+    const html_index = load_html("index");
     res.status = 200;
     res.content_type = .HTML;
     res.body = html_index;
 }
 
 fn login(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    const html_index = @embedFile("static/login.html");
+    const html_index = load_html("login");
+
     const session_token = req.cookies().get("session_token") orelse "";
 
     if (session_token.len > 0) {
@@ -201,7 +211,7 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     var it = (try req.formData()).iterator();
 
-    const html_auth = @embedFile("static/dashboard.html");
+    const html_dashboard = load_html("dashboard");
 
     var input_email: []const u8 = "";
     var input_password: []const u8 = "";
@@ -223,7 +233,7 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     }
     if (input_email.len > 0 and input_password.len > 0) {
         var row = try app.pool.row("SELECT id, email, hashed_pwd, first_name, last_name FROM users WHERE email = $1", .{input_email}) orelse {
-            const login_html = @embedFile("static/login.html");
+            const login_html = load_html("login");
             const login_with_error_html = try std.mem.replaceOwned(u8, res.arena, login_html, "hidden", "");
             res.status = 200;
             res.content_type = .HTML;
@@ -243,7 +253,7 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         const valid_password = bcrypt_verify(user_hashed_pwd, input_password);
 
         if (valid_password) {
-            const template = try std.mem.replaceOwned(u8, res.arena, html_auth, "{s}", "User {fn} {ln} has the email {em}");
+            const template = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{s}", "User {fn} {ln} has the email {em}");
             const first_name_replaced = try std.mem.replaceOwned(u8, res.arena, template, "{fn}", user_first_name);
             const last_name_replaced = try std.mem.replaceOwned(u8, res.arena, first_name_replaced, "{ln}", user_last_name);
             const email_replaced = try std.mem.replaceOwned(u8, res.arena, last_name_replaced, "{em}", user_email);
@@ -268,7 +278,7 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             return;
         }
         if (valid_password == false) {
-            const login_html = @embedFile("static/login.html");
+            const login_html = load_html("login");
             const login_with_error_html = try std.mem.replaceOwned(u8, res.arena, login_html, "hidden", "");
             res.status = 200;
             res.content_type = .HTML;
@@ -286,7 +296,7 @@ fn register(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     }
 
-    const register_html = @embedFile("static/register.html");
+    const register_html = load_html("register");
     res.status = 200;
     res.content_type = .HTML;
     res.body = register_html;
@@ -335,26 +345,12 @@ fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             return;
         };
 
-        const login_html = @embedFile("static/login.html");
+        const login_html = load_html("login");
         res.status = 200;
         res.content_type = .HTML;
         res.body = login_html;
     }
 }
-
-// fn workout_table(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
-//     const is_hx = req.headers.get("hx-request") orelse "false";
-//     if (std.mem.eql(u8, is_hx, "true") == false) {
-//         res.status = 404;
-//         res.body = "NOPE!";
-//         return;
-//     }
-
-//     const wo_table_html = @embedFile("static/workout_table.html");
-//     res.status = 200;
-//     res.content_type = .HTML;
-//     res.body = wo_table_html;
-// }
 
 fn submit_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
