@@ -170,8 +170,8 @@ fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     const html_index = @embedFile("static/login.html");
     
-    res.header("Set-Cookie", "session_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/login;");
-    res.header("Set-Cookie", "user_id=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/login;");
+    res.header("Set-Cookie", "session_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
+    res.header("Set-Cookie", "user_id=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
     
     res.status = 200;
     res.content_type = .HTML;
@@ -285,7 +285,7 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             _ = try app.pool.exec("INSERT INTO session_state VALUES ($1::uuid, $2::uuid)", .{ session_token, user_id});
 
             const cookie_options = httpz.response.CookieOpts{
-                .path = "/login",
+                .path = "/",
                 .domain = "",
                 .max_age = 60,
                 .secure = false, // in production set to true (https only)
