@@ -239,12 +239,8 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     var input_password: []const u8 = "";
 
     while (it.next()) |kv| {
-        if (std.mem.eql(u8, kv.key, "email")) {
-            input_email = kv.value;
-        }
-        if (std.mem.eql(u8, kv.key, "password")) {
-            input_password = kv.value;
-        }
+        if (std.mem.eql(u8, kv.key, "email")) {input_email = kv.value;}
+        if (std.mem.eql(u8, kv.key, "password")) {input_password = kv.value;}
     }
 
     if (input_email.len == 0 or input_password.len == 0) {
@@ -276,7 +272,7 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
         if (valid_password) {
             const html_dashboard = @embedFile("static/dashboard.html");
-            const template = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{s}", "User {fn} {ln} has the email {em}");
+            const template = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{s}", "Welcome <i> {fn} {ln}</i> - <i>{em}</i>");
             const first_name_replaced = try std.mem.replaceOwned(u8, res.arena, template, "{fn}", user_first_name);
             const last_name_replaced = try std.mem.replaceOwned(u8, res.arena, first_name_replaced, "{ln}", user_last_name);
             const email_replaced = try std.mem.replaceOwned(u8, res.arena, last_name_replaced, "{em}", user_email);
@@ -355,24 +351,22 @@ fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         }
     }
 
-    if (input_email.len > 0 and input_password.len > 0) {
-        const uuid = try generateUUIDv4(res.arena);
-        const role = "user";
-        const hashed_pwd = try bcrypt_encoder(input_password, res.arena);
+    const uuid = try generateUUIDv4(res.arena);
+    const role = "user";
+    const hashed_pwd = try bcrypt_encoder(input_password, res.arena);
 
-        _ = app.pool.exec("INSERT INTO users (id, first_name, last_name, email, user_role, hashed_pwd) VALUES ($1::uuid, $2, $3, $4, $5, $6);", .{ uuid, input_first_name, input_last_name, input_email, role, hashed_pwd }) catch |err| {
-            std.debug.print("Database error: {}\n", .{err});
-            res.status = 200;
-            const hash_debug = try std.mem.replaceOwned(u8, res.arena, "hashed {s}", "{s}", hashed_pwd);
-            res.body = hash_debug;
-            return;
-        };
-
-        const login_html = @embedFile("static/login.html");
+    _ = app.pool.exec("INSERT INTO users (id, first_name, last_name, email, user_role, hashed_pwd) VALUES ($1::uuid, $2, $3, $4, $5, $6);", .{ uuid, input_first_name, input_last_name, input_email, role, hashed_pwd }) catch |err| {
+        std.debug.print("Database error: {}\n", .{err});
         res.status = 200;
-        res.content_type = .HTML;
-        res.body = login_html;
-    }
+        const hash_debug = try std.mem.replaceOwned(u8, res.arena, "hashed {s}", "{s}", hashed_pwd);
+        res.body = hash_debug;
+        return;
+    };
+
+    const login_html = @embedFile("static/login.html");
+    res.status = 200;
+    res.content_type = .HTML;
+    res.body = login_html;
 }
 
 fn submit_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
