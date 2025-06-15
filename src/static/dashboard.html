@@ -5,7 +5,7 @@
   </script>
 
   <div class="flex items-center justify-between mb-4 row-span-1">  
-    <div id="auth-response">{s}</div> 
+    <div id="welcome_message" hx-get="welcome_message" hx-target="#welcome_message" hx-swap="innerHTML" hx-trigger="load"></div> 
     <button 
       hx-get="/back_to_login" 
       hx-target="#content"
@@ -30,7 +30,7 @@
         id="exercise"
         name="exercise"
         placeholder="e.g., Bench Press"
-        class="form_input_style"
+        class="form_input_style text-transform: lowercase"
         required
       >
     </div>
@@ -70,10 +70,6 @@
         required
       >
     </div>
-    <div class="flex-auto">
-      <label for="date" class="label_input_style">Date</label>
-      <input type="date" id="date" name="date" class="form_input_style">
-    </div>
     <div class="self-end">
       <button
         type="submit"
@@ -97,11 +93,13 @@
       <th class="th_style">Delete it</th>
     </tr>
   </thead>
+
   <tbody id="workout_body" 
   class="row-span-3"
   hx-get="/cell_workout"
   hx-swap="innerHTML"
   hx-trigger="load, submit from:#new_exercise_form">
   </tbody>
+
 </table>
 </div>

@@ -35,7 +35,11 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     // - Postgres -
-    var pool = try pg.Pool.init(allocator, .{ .size = 10, .connect = .{ .port = 5432, .host = "127.0.0.1" }, .auth = .{
+    var pool = try pg.Pool.init(
+        allocator, 
+        .{ .size = 10, .connect = 
+                .{ .port = 5432, .host = "127.0.0.1" }, 
+                    .auth = .{
         .username = "thomasfsr91",
         .database = "training_db",
         .password = "feliz1989",
@@ -71,9 +75,10 @@ pub fn main() !void {
     router.get("/register", register, .{});
     router.put("/writing_user", writing_user, .{});
     router.put("/dashboard", dashboard, .{});
+    router.get("/welcome_message", welcome_message, .{});
     router.get("/back_to_login", back_to_login, .{});
     router.put("/submit_workout", submit_workout, .{});
-    router.get("/cell_workout", cell_workout, .{});
+    // router.get("/cell_workout", cell_workout, .{});
 
     router.get("/error", @"error", .{});
 
@@ -87,6 +92,12 @@ const BcryptResult = struct {
     hash: [23]u8, // 23 bytes
     salt: [16]u8,
 };
+fn decodeCookieValue(value: []const u8) ![]const u8 {
+    if (value.len == 0) return value;
+    // Trim surrounding quotes if present
+    const trimmed = std.mem.trim(u8, value, "\"");
+    return trimmed;
+}
 
 fn bcrypt_encoder(pwd: []const u8, alloc: std.mem.Allocator) ![]const u8 {
     const buf = try alloc.alloc(u8, 60);
@@ -149,6 +160,8 @@ fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     const contents = try file.readToEndAlloc(res.arena, std.math.maxInt(usize));
     res.content_type = .CSS;
     res.body = contents;
+    return;
+
 }
 
 fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
@@ -159,6 +172,7 @@ fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
         res.body = html_index;     
     };
     sendIndex;
+    return;
 }
 
 fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
@@ -172,10 +186,14 @@ fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     
     res.header("Set-Cookie", "session_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
     res.header("Set-Cookie", "user_id=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
-    
+    res.header("Set-Cookie", "first_name=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
+    res.header("Set-Cookie", "last_name=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
+    res.header("Set-Cookie", "email=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
+
     res.status = 200;
     res.content_type = .HTML;
     res.body = html_index;
+    return;
 }
 
 
@@ -189,7 +207,6 @@ fn login(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         res.body = html_login;};
 
     const session_token = req.cookies().get("session_token") orelse "";
-    const user_id = req.cookies().get("user_id") orelse "";
 
     if (session_token.len == 0) {
         sendLogin;
@@ -198,18 +215,9 @@ fn login(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     var session_row = try app.pool.row("SELECT created_at FROM session_state WHERE id = $1", 
     .{session_token}) orelse {sendLogin; return;};
-    defer session_row.deinit() catch {};   
-    var user_row = try app.pool.row("SELECT email, first_name, last_name FROM users WHERE id = $1", 
-    .{user_id}) orelse {sendLogin; return;};
-    defer user_row.deinit() catch {};
-    const user_email = user_row.get([]u8, 0);
-    const user_first_name = user_row.get([]u8, 1);
-    const user_last_name = user_row.get([]u8, 2);
-    const template = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{s}", "User {fn} {ln} has the email {em}");
-    const first_name_replaced = try std.mem.replaceOwned(u8, res.arena, template, "{fn}", user_first_name);
-    const last_name_replaced = try std.mem.replaceOwned(u8, res.arena, first_name_replaced, "{ln}", user_last_name);
-    const email_replaced = try std.mem.replaceOwned(u8, res.arena, last_name_replaced, "{em}", user_email);
-    res.body = email_replaced;
+    defer session_row.deinit() catch {};
+
+    res.body = html_dashboard;
     res.status = 200;
     res.content_type = .HTML;
     return;
@@ -222,6 +230,8 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         res.body = "NOPE!";
         return;
     }
+    const login_html = @embedFile("static/login.html");
+    const html_dashboard = @embedFile("static/dashboard.html");
 
     var it = (try req.formData()).iterator();
 
@@ -233,68 +243,53 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         if (std.mem.eql(u8, kv.key, "password")) {input_password = kv.value;}
     }
 
-    if (input_email.len == 0 or input_password.len == 0) {
+    var row = try app.pool.row("SELECT id, email, hashed_pwd, first_name, last_name FROM users WHERE email = $1", .{input_email}) orelse {
+        const login_with_error_html = try std.mem.replaceOwned(u8, res.arena, login_html, "hidden", "");
         res.status = 200;
         res.content_type = .HTML;
-        res.body = "Missing email or password";
+        res.body = login_with_error_html;
+        return;
+    };
+    defer row.deinit() catch {};
+
+    const bytes_user_id = row.get([]u8, 0);
+    const user_id = try decodeUUIDv4(res.arena, bytes_user_id);
+    const user_email = row.get([]u8, 1);
+    const user_hashed_pwd = row.get([]u8, 2);
+    const user_first_name = row.get([]u8, 3);
+    const user_last_name = row.get([]u8, 4);
+
+    const valid_password = bcrypt_verify(user_hashed_pwd, input_password);
+
+    if (valid_password == false) {
+        const login_with_error_html = try std.mem.replaceOwned(u8, res.arena, login_html, "hidden", "");
+        res.status = 200;
+        res.content_type = .HTML;
+        res.body = login_with_error_html;
         return;
     }
-    if (input_email.len > 0 and input_password.len > 0) {
-        var row = try app.pool.row("SELECT id, email, hashed_pwd, first_name, last_name FROM users WHERE email = $1", .{input_email}) orelse {
-            const login_html = @embedFile("static/login.html");
-            const login_with_error_html = try std.mem.replaceOwned(u8, res.arena, login_html, "hidden", "");
-            res.status = 200;
-            res.content_type = .HTML;
-            res.body = login_with_error_html;
-            return;
-        };
+    const session_token = try generateUUIDv4(res.arena);
+    _ = try app.pool.exec("INSERT INTO session_state VALUES ($1::uuid, $2::uuid)", .{ session_token, user_id});
 
-        defer row.deinit() catch {};
-
-        const bytes_user_id = row.get([]u8, 0);
-        const user_id = try decodeUUIDv4(res.arena, bytes_user_id);
-        const user_email = row.get([]u8, 1);
-        const user_hashed_pwd = row.get([]u8, 2);
-        const user_first_name = row.get([]u8, 3);
-        const user_last_name = row.get([]u8, 4);
-
-        const valid_password = bcrypt_verify(user_hashed_pwd, input_password);
-
-        if (valid_password) {
-            const html_dashboard = @embedFile("static/dashboard.html");
-            const template = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{s}", "Welcome <i> {fn} {ln}</i> - <i>{em}</i>");
-            const first_name_replaced = try std.mem.replaceOwned(u8, res.arena, template, "{fn}", user_first_name);
-            const last_name_replaced = try std.mem.replaceOwned(u8, res.arena, first_name_replaced, "{ln}", user_last_name);
-            const email_replaced = try std.mem.replaceOwned(u8, res.arena, last_name_replaced, "{em}", user_email);
-
-            const session_token = try generateUUIDv4(res.arena);
-            _ = try app.pool.exec("INSERT INTO session_state VALUES ($1::uuid, $2::uuid)", .{ session_token, user_id});
-
-            const cookie_options = httpz.response.CookieOpts{
-                .path = "/",
-                .domain = "",
-                .max_age = 60,
-                .secure = false, // in production set to true (https only)
-                .http_only = true,
-                .partitioned = false,
-                .same_site = .lax,
-            };
-            try res.setCookie("session_token", session_token, cookie_options);
-            try res.setCookie("user_id", user_id, cookie_options);
-            res.body = email_replaced;
-            res.status = 200;
-            res.content_type = .HTML;
-            return;
-        }
-        if (valid_password == false) {
-            const login_html = @embedFile("static/login.html");
-            const login_with_error_html = try std.mem.replaceOwned(u8, res.arena, login_html, "hidden", "");
-            res.status = 200;
-            res.content_type = .HTML;
-            res.body = login_with_error_html;
-            return;
-        }
-    }
+    const cookie_options = httpz.response.CookieOpts{
+        .path = "/",
+        .domain = "",
+        .max_age = 60,
+        .secure = false, // in production set to true (https only)
+        .http_only = true,
+        .partitioned = false,
+        .same_site = .lax,
+    };
+    print("user_id: {s}\n", .{user_id});
+    try res.setCookie("session_token", session_token, cookie_options);
+    try res.setCookie("user_id", user_id, cookie_options);
+    try res.setCookie("first_name", user_first_name, cookie_options);
+    try res.setCookie("last_name", user_last_name, cookie_options);
+    try res.setCookie("email", user_email, cookie_options);
+    res.body = html_dashboard;
+    res.status = 200;
+    res.content_type = .HTML;
+    return;
 }
 
 fn register(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
@@ -304,7 +299,6 @@ fn register(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
         res.body = "NOPE!";
         return;
     }
-
     const register_html = @embedFile("static/register.html");
     res.status = 200;
     res.content_type = .HTML;
@@ -403,9 +397,17 @@ fn submit_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 }
 
 fn cell_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    const user_id = req.cookies().get("user_id") orelse "";
+    const user_id = req.cookies().get("user_id") orelse "teste";
+    print("user_id cell workout: {s}\n", .{user_id});
     const wo_data = try app.pool.query("SELECT exercise, weight, sets, reps, created_at FROM workout_logs WHERE user_id = $1::uuid;", .{user_id});
     defer wo_data.deinit();
+
+    if (try wo_data.next() == null) {
+        res.body = "<tr class=ts_style> <td class=td_style> </td> <td class=td_style></td><td class=td_style></td><td class=td_style></td><td class=td_style></td><td class=td_style></td></tr>";
+        res.content_type = .HTML;
+        res.status = 200;
+        return;
+    }
 
     var html = std.ArrayList(u8).init(res.arena);
     const writer = html.writer();
@@ -443,5 +445,16 @@ fn cell_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.body = html.items;
     res.content_type = .HTML;
     res.status = 200;
+    return;
+}
+
+fn welcome_message(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    const first_name = try decodeCookieValue(req.cookies().get("first_name") orelse "");
+    const last_name = try decodeCookieValue(req.cookies().get("last_name") orelse "");
+    const email = try decodeCookieValue(req.cookies().get("email") orelse "");
+    
+    res.body = try std.fmt.allocPrint(res.arena, "Welcome {s} {s} - {s}", .{first_name, last_name, email});
+    res.status = 200;
+    res.content_type = .HTML;
     return;
 }

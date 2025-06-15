@@ -251,6 +251,9 @@
   .text-red-500 {
     color: var(--color-red-500);
   }
+  .lowercase {
+    text-transform: lowercase;
+  }
 }
 @layer components {
   .centered_body_style {
