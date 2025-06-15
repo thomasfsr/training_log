@@ -198,17 +198,7 @@ fn login(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     var session_row = try app.pool.row("SELECT created_at FROM session_state WHERE id = $1", 
     .{session_token}) orelse {sendLogin; return;};
-    defer session_row.deinit() catch {};
-    const created_at = session_row.get(i64, 0);
-    const current_time = std.time.microTimestamp();
-    const count_microseconds = current_time - created_at;
-    const microseconds_per_minutes = 60_000_000; 
-    const minutes_diff = @divFloor(count_microseconds, microseconds_per_minutes);
-    
-    if (minutes_diff > 2) {
-        sendLogin; 
-        return;}
-    
+    defer session_row.deinit() catch {};   
     var user_row = try app.pool.row("SELECT email, first_name, last_name FROM users WHERE id = $1", 
     .{user_id}) orelse {sendLogin; return;};
     defer user_row.deinit() catch {};
