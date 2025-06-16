@@ -78,7 +78,7 @@ pub fn main() !void {
     router.get("/welcome_message", welcome_message, .{});
     router.get("/back_to_login", back_to_login, .{});
     router.put("/submit_workout", submit_workout, .{});
-    // router.get("/cell_workout", cell_workout, .{});
+    router.get("/cell_workout", cell_workout, .{});
 
     router.get("/error", @"error", .{});
 
@@ -94,9 +94,9 @@ const BcryptResult = struct {
 };
 fn decodeCookieValue(value: []const u8) ![]const u8 {
     if (value.len == 0) return value;
-    // Trim surrounding quotes if present
     const trimmed = std.mem.trim(u8, value, "\"");
-    return trimmed;
+    if (std.mem.indexOf(u8, trimmed, "%") == null) return trimmed;
+
 }
 
 fn bcrypt_encoder(pwd: []const u8, alloc: std.mem.Allocator) ![]const u8 {
@@ -186,8 +186,6 @@ fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     
     res.header("Set-Cookie", "session_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
     res.header("Set-Cookie", "user_id=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
-    res.header("Set-Cookie", "first_name=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
-    res.header("Set-Cookie", "last_name=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
     res.header("Set-Cookie", "email=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
 
     res.status = 200;
@@ -197,7 +195,7 @@ fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
 }
 
 
-fn login(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+fn login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const html_login = @embedFile("static/login.html");
     const html_dashboard = @embedFile("static/dashboard.html");
 
@@ -212,10 +210,6 @@ fn login(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         sendLogin;
         return;
         }
-
-    var session_row = try app.pool.row("SELECT created_at FROM session_state WHERE id = $1", 
-    .{session_token}) orelse {sendLogin; return;};
-    defer session_row.deinit() catch {};
 
     res.body = html_dashboard;
     res.status = 200;
@@ -256,8 +250,6 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const user_id = try decodeUUIDv4(res.arena, bytes_user_id);
     const user_email = row.get([]u8, 1);
     const user_hashed_pwd = row.get([]u8, 2);
-    const user_first_name = row.get([]u8, 3);
-    const user_last_name = row.get([]u8, 4);
 
     const valid_password = bcrypt_verify(user_hashed_pwd, input_password);
 
@@ -280,11 +272,8 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         .partitioned = false,
         .same_site = .lax,
     };
-    print("user_id: {s}\n", .{user_id});
     try res.setCookie("session_token", session_token, cookie_options);
     try res.setCookie("user_id", user_id, cookie_options);
-    try res.setCookie("first_name", user_first_name, cookie_options);
-    try res.setCookie("last_name", user_last_name, cookie_options);
     try res.setCookie("email", user_email, cookie_options);
     res.body = html_dashboard;
     res.status = 200;
@@ -398,27 +387,20 @@ fn submit_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
 fn cell_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const user_id = req.cookies().get("user_id") orelse "teste";
-    print("user_id cell workout: {s}\n", .{user_id});
-    const wo_data = try app.pool.query("SELECT exercise, weight, sets, reps, created_at FROM workout_logs WHERE user_id = $1::uuid;", .{user_id});
+    const wo_data = try app.pool.query("SELECT exercise, weight, sets, reps, created_at FROM workout_logs WHERE user_id = $1::uuid;",.{user_id});
     defer wo_data.deinit();
-
-    if (try wo_data.next() == null) {
-        res.body = "<tr class=ts_style> <td class=td_style> </td> <td class=td_style></td><td class=td_style></td><td class=td_style></td><td class=td_style></td><td class=td_style></td></tr>";
-        res.content_type = .HTML;
-        res.status = 200;
-        return;
-    }
 
     var html = std.ArrayList(u8).init(res.arena);
     const writer = html.writer();
 
-    while (try wo_data.next()) |row| {
+    while (true) {
+        const row = try wo_data.next() orelse break;
         const exercise: []u8 = row.get([]u8, 0);
         const weight: i32 = row.get(i32, 1);
         const sets: i32 = row.get(i32, 2);
         const reps: i32 = row.get(i32, 3);
         const created_at: i64 = row.get(i64, 4);
-        const created_at_str = try printUnixMicroTimestamp(created_at, res.arena);
+        const created_at_str: []u8 = try printUnixMicroTimestamp(created_at, res.arena);
         try writer.print(
             \\<tr class=ts_style>
             \\  <td class=td_style>
@@ -440,19 +422,30 @@ fn cell_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             \\      <input type="checkbox" name="delete_it" value="Delete" class="scale-150">
             \\  </td>
             \\</tr>
-        , .{ exercise, weight, sets, reps, created_at_str });
+        , .{ exercise, weight, sets, reps, created_at_str});
     }
+
+    if (html.items.len > 0) {
     res.body = html.items;
     res.content_type = .HTML;
     res.status = 200;
-    return;
+    return;} else {
+        res.body ="";
+        res.content_type = .HTML;
+        res.status = 200;
+        return;
+    }
 }
 
-fn welcome_message(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    const first_name = try decodeCookieValue(req.cookies().get("first_name") orelse "");
-    const last_name = try decodeCookieValue(req.cookies().get("last_name") orelse "");
-    const email = try decodeCookieValue(req.cookies().get("email") orelse "");
-    
+fn welcome_message(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    const user_id = req.cookies().get("user_id") orelse "";
+    const email = req.cookies().get("email") orelse "";
+
+    var row = try app.pool.row("SELECT first_name, last_name FROM users WHERE id = $1", 
+    .{user_id}) orelse {res.body = ""; res.content_type= .HTML; res.status= 200; return;};
+    defer row.deinit() catch {};
+    const first_name: []u8 = row.get([]u8, 0);
+    const last_name: []u8 = row.get([]u8, 1);
     res.body = try std.fmt.allocPrint(res.arena, "Welcome {s} {s} - {s}", .{first_name, last_name, email});
     res.status = 200;
     res.content_type = .HTML;
