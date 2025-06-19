@@ -1,22 +1,3 @@
-<div class="centered_form_inner_style grid-rows-3" id="content">
-
-  <script>
-    document.getElementById('date').valueAsDate = new Date();
-
-  </script>
-
-  <div class="flex items-center justify-between mb-4 row-span-1">  
-    <div id="welcome_message" hx-get="welcome_message" hx-target="#welcome_message" hx-swap="outerHTML" hx-trigger="load"></div> 
-    <button 
-      hx-get="/back_to_login" 
-      hx-target="#content"
-      hx-swap="outerHTML"
-      class="button_style"
-    >
-      Back
-    </button>
-  </div>
-
   <form 
     id="new_exercise_form"
     hx-put="/submit_workout" 
@@ -80,27 +61,3 @@
       </button>
     </div>
   </form>
-
-<!-- table for showing the data of the user -->
-
-<table class="tb_style row-span-3" id="exercise_table">
-  <thead>
-    <tr>
-      <th class="th_style">Exercise</th>
-      <th class="th_style">Weight (kg)</th>
-      <th class="th_style">Sets</th>
-      <th class="th_style">Reps</th>
-      <th class="th_style">Created At (Y-m-d)</th>
-      <th class="th_style">Delete it</th>
-    </tr>
-  </thead>
-
-  <tbody id="workout_body" 
-  class="row-span-3"
-  hx-get="/cell_workout"
-  hx-swap="innerHTML"
-  hx-trigger="load, submit from:#new_exercise_form">
-  </tbody>
-
-</table>
-</div>

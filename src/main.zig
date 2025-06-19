@@ -79,6 +79,7 @@ pub fn main() !void {
     router.get("/back_to_login", back_to_login, .{});
     router.put("/submit_workout", submit_workout, .{});
     router.get("/cell_workout", cell_workout, .{});
+    router.get("/dashboard_form", dashboard_form, .{});
 
     router.get("/error", @"error", .{});
 
@@ -360,17 +361,19 @@ fn submit_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     var reps: []const u8 = "";
 
     while (it.next()) |kv| {
+        const lower_value = try std.ascii.allocLowerString(res.arena, kv.value);
+
         if (std.mem.eql(u8, kv.key, "exercise")) {
-            exercise = kv.value;
+            exercise = lower_value;
         }
         if (std.mem.eql(u8, kv.key, "weight")) {
-            weight = kv.value;
+            weight = lower_value;
         }
         if (std.mem.eql(u8, kv.key, "sets")) {
-            sets = kv.value;
+            sets = lower_value;
         }
         if (std.mem.eql(u8, kv.key, "reps")) {
-            reps = kv.value;
+            reps = lower_value;
         }
     }
     if (exercise.len > 0) {
@@ -449,5 +452,13 @@ fn welcome_message(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.body = try std.fmt.allocPrint(res.arena, "Welcome {s} {s} - {s}", .{first_name, last_name, email});
     res.status = 200;
     res.content_type = .HTML;
+    return;
+}
+
+fn dashboard_form(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
+    const html = @embedFile("static/dashboard_form.html");
+    res.body = html;
+    res.content_type = .HTML;
+    res.status = 200;
     return;
 }
