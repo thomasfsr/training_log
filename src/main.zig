@@ -351,7 +351,13 @@ fn submit_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     }
 
-    const user_id = req.cookies().get("user_id") orelse "";
+    const user_id = req.cookies().get("user_id");
+
+    if (user_id == null) {
+        res.status = 200; 
+        res.header("HX-Refresh", "true");
+        return;
+    }
 
     var it = (try req.formData()).iterator();
 
@@ -389,7 +395,14 @@ fn submit_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 }
 
 fn cell_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    const user_id = req.cookies().get("user_id") orelse "teste";
+    const user_id = req.cookies().get("user_id");
+
+    if (user_id == null) {
+        res.status = 200; 
+        res.header("HX-Refresh", "true");
+        return;
+    }
+
     const wo_data = try app.pool.query("SELECT exercise, weight, sets, reps, created_at FROM workout_logs WHERE user_id = $1::uuid;",.{user_id});
     defer wo_data.deinit();
 
