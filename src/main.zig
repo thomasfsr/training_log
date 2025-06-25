@@ -164,50 +164,51 @@ fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     defer file.close();
 
     const contents = try file.readToEndAlloc(res.arena, std.math.maxInt(usize));
-    res.content_type = .CSS;
     res.body = contents;
+    res.content_type = .CSS;
+    res.status = 200;
     return;
 }
 
 fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     const html_index = @embedFile("static/index.html");
-    const sendIndex = {
-        res.status = 200;
-        res.content_type = .HTML;
-        res.body = html_index;     
-    };
-    sendIndex;
+    res.body = html_index;     
+    res.content_type = .HTML;
+    res.status = 200;
     return;
 }
 
 fn login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    const is_hx = req.headers.get("hx-request") orelse "false";
+    if (std.mem.eql(u8, is_hx, "true") == false) {
+        res.body = "NOPE!";
+        res.status = 404;
+        return;
+    }
+
     const html_login = @embedFile("static/login.html");
     const html_dashboard = @embedFile("static/dashboard.html");
 
-    const sendLogin = {
-        res.status = 200;
+    _ = req.cookies().get("session_token") orelse {
+        res.body = html_login;
         res.content_type = .HTML;
-        res.body = html_login;};
-
-    const session_token = req.cookies().get("session_token") orelse "";
-
-    if (session_token.len == 0) {
-        sendLogin;
+        res.status = 200;
         return;
-        }
+        };
 
     res.body = html_dashboard;
-    res.status = 200;
     res.content_type = .HTML;
+    res.status = 200;
     return;
 }
 
 fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true")==false){
-        res.status = 404;
+    if (std.mem.eql(u8, is_hx, "true") == false) {
         res.body = "NOPE!";
-        return;}
+        res.status = 404;
+        return;
+    }
 
     const html_index = @embedFile("static/login.html");
     
@@ -215,21 +216,28 @@ fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.header("Set-Cookie", "user_id=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
     res.header("Set-Cookie", "email=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
 
-    res.status = 200;
-    res.content_type = .HTML;
     res.body = html_index;
+    res.content_type = .HTML;
+    res.status = 200;
     return;
 }
 
 fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "true") == false) {
-        res.status = 404;
         res.body = "NOPE!";
+        res.status = 404;
         return;
     }
+    
     const login_html = @embedFile("static/login.html");
     const html_dashboard = @embedFile("static/dashboard.html");
+
+    const login_with_error = {
+        res.body = try std.mem.replaceOwned(u8, res.arena, login_html, "hidden", "");
+        res.status = 200;
+        res.content_type = .HTML;
+        };
 
     var it = (try req.formData()).iterator();
 
@@ -242,10 +250,7 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     }
 
     var row = try app.pool.row("SELECT id, email, hashed_pwd, first_name, last_name FROM users WHERE email = $1", .{input_email}) orelse {
-        const login_with_error_html = try std.mem.replaceOwned(u8, res.arena, login_html, "hidden", "");
-        res.status = 200;
-        res.content_type = .HTML;
-        res.body = login_with_error_html;
+        login_with_error;
         return;
     };
     defer row.deinit() catch {};
@@ -258,10 +263,7 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const valid_password = bcrypt_verify(user_hashed_pwd, input_password);
 
     if (valid_password == false) {
-        const login_with_error_html = try std.mem.replaceOwned(u8, res.arena, login_html, "hidden", "");
-        res.status = 200;
-        res.content_type = .HTML;
-        res.body = login_with_error_html;
+        login_with_error;
         return;
     }
     const session_token = try generateUUIDv4(res.arena);
@@ -280,22 +282,22 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     try res.setCookie("user_id", user_id, cookie_options);
     try res.setCookie("email", user_email, cookie_options);
     res.body = html_dashboard;
-    res.status = 200;
     res.content_type = .HTML;
+    res.status = 200;
     return;
 }
 
 fn register(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "true") == false) {
-        res.status = 404;
         res.body = "NOPE!";
+        res.status = 404;
         return;
     }
     const register_html = @embedFile("static/register.html");
-    res.status = 200;
-    res.content_type = .HTML;
     res.body = register_html;
+    res.content_type = .HTML;
+    res.status = 200;
 }
 
 fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
@@ -354,13 +356,11 @@ fn submit_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     }
 
-    const user_id = req.cookies().get("user_id");
-
-    if (user_id == null) {
+    const user_id = req.cookies().get("user_id") orelse {
         res.status = 200; 
         res.header("HX-Refresh", "true");
         return;
-    }
+    };
 
     var it = (try req.formData()).iterator();
 
@@ -398,13 +398,17 @@ fn submit_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 }
 
 fn cell_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    const user_id = req.cookies().get("user_id");
-
-    if (user_id == null) {
-        res.status = 200; 
-        res.header("HX-Refresh", "true");
+    const is_hx = req.headers.get("hx-request") orelse "false";
+    if (std.mem.eql(u8, is_hx, "true") == false) {
+        res.body = "NOPE!";
+        res.status = 404;
         return;
     }
+    
+    const user_id = req.cookies().get("user_id") orelse  {res.status = 200; 
+        res.header("HX-Refresh", "true");
+        return;
+    };
 
     const wo_data = try app.pool.query("SELECT exercise, weight, sets, reps, created_at FROM workout_logs WHERE user_id = $1::uuid;",.{user_id});
     defer wo_data.deinit();
