@@ -70,13 +70,18 @@ pub fn main() !void {
     router.get("/tailwindcss", serve_tailwind, .{});
 
     // - html -
+    // -------- Root endpoint has CONTENT.
     router.get("/", index, .{});
+
+    // -------- Endpoints that swaps the CONTENT.
     router.get("/login", login, .{});
     router.get("/register", register, .{});
-    router.put("/writing_user", writing_user, .{});
     router.put("/dashboard", dashboard, .{});
-    router.get("/welcome_message", welcome_message, .{});
     router.get("/back_to_login", back_to_login, .{});
+
+    // -------- Endpoints of divs.
+    router.put("/writing_user", writing_user, .{});
+    router.get("/welcome_message", welcome_message, .{});
     router.put("/submit_workout", submit_workout, .{});
     router.get("/cell_workout", cell_workout, .{});
     router.get("/dashboard_form", dashboard_form, .{});
@@ -162,7 +167,6 @@ fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     res.content_type = .CSS;
     res.body = contents;
     return;
-
 }
 
 fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
@@ -175,26 +179,6 @@ fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     sendIndex;
     return;
 }
-
-fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true")==false){
-        res.status = 404;
-        res.body = "NOPE!";
-        return;}
-
-    const html_index = @embedFile("static/login.html");
-    
-    res.header("Set-Cookie", "session_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
-    res.header("Set-Cookie", "user_id=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
-    res.header("Set-Cookie", "email=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
-
-    res.status = 200;
-    res.content_type = .HTML;
-    res.body = html_index;
-    return;
-}
-
 
 fn login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const html_login = @embedFile("static/login.html");
@@ -215,6 +199,25 @@ fn login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.body = html_dashboard;
     res.status = 200;
     res.content_type = .HTML;
+    return;
+}
+
+fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    const is_hx = req.headers.get("hx-request") orelse "false";
+    if (std.mem.eql(u8, is_hx, "true")==false){
+        res.status = 404;
+        res.body = "NOPE!";
+        return;}
+
+    const html_index = @embedFile("static/login.html");
+    
+    res.header("Set-Cookie", "session_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
+    res.header("Set-Cookie", "user_id=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
+    res.header("Set-Cookie", "email=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
+
+    res.status = 200;
+    res.content_type = .HTML;
+    res.body = html_index;
     return;
 }
 
