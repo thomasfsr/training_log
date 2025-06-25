@@ -74,9 +74,9 @@ pub fn main() !void {
     router.get("/", index, .{});
 
     // -------- Endpoints that swaps the CONTENT.
-    router.get("/login", login, .{});
-    router.get("/register", register, .{});
-    router.put("/dashboard", dashboard, .{});
+    router.get("/login", login_page, .{});
+    router.get("/register", register_page, .{});
+    router.put("/dashboard", dashboard_page, .{});
     router.get("/back_to_login", back_to_login, .{});
 
     // -------- Endpoints of divs.
@@ -178,7 +178,7 @@ fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 
-fn login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
+fn login_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "true") == false) {
         res.body = "NOPE!";
@@ -222,7 +222,7 @@ fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 
-fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "true") == false) {
         res.body = "NOPE!";
@@ -287,7 +287,7 @@ fn dashboard(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 
-fn register(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
+fn register_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "true") == false) {
         res.body = "NOPE!";
