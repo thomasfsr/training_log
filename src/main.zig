@@ -239,11 +239,10 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         res.content_type = .HTML;
         };
 
-    var it = (try req.formData()).iterator();
-
     var input_email: []const u8 = "";
     var input_password: []const u8 = "";
 
+    var it = (try req.formData()).iterator();
     while (it.next()) |kv| {
         if (std.mem.eql(u8, kv.key, "email")) {input_email = kv.value;}
         if (std.mem.eql(u8, kv.key, "password")) {input_password = kv.value;}
@@ -308,13 +307,12 @@ fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     }
 
-    var it = (try req.formData()).iterator();
-
     var input_email: []const u8 = "";
     var input_password: []const u8 = "";
     var input_first_name: []const u8 = "";
     var input_last_name: []const u8 = "";
 
+    var it = (try req.formData()).iterator();
     while (it.next()) |kv| {
         if (std.mem.eql(u8, kv.key, "email")) {
             input_email = kv.value;
@@ -329,6 +327,17 @@ fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             input_last_name = kv.value;
         }
     }
+
+    const existing_email = try app.pool.rowOpts(
+        "SELECT email FROM users WHERE email = $1", 
+        .{input_email}, .{.release_conn = true}) orelse {
+        const register_html = @embedFile("static/register.html");
+        res.body = try std.mem.replaceOwned(u8, res.arena, register_html, "hidden", "");
+        res.status = 200;
+        res.content_type = .HTML;
+        return;
+    };
+    print("\n{any}\n", .{existing_email});
 
     const uuid = try generateUUIDv4(res.arena);
     const role = "user";
