@@ -314,30 +314,34 @@ fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     var it = (try req.formData()).iterator();
     while (it.next()) |kv| {
+        const lower_value = try std.ascii.allocLowerString(res.arena, kv.value);
+
         if (std.mem.eql(u8, kv.key, "email")) {
-            input_email = kv.value;
+            input_email = lower_value;
         }
         if (std.mem.eql(u8, kv.key, "password")) {
-            input_password = kv.value;
+            input_password = lower_value;
         }
         if (std.mem.eql(u8, kv.key, "first_name")) {
-            input_first_name = kv.value;
+            input_first_name = lower_value;
         }
         if (std.mem.eql(u8, kv.key, "last_name")) {
-            input_last_name = kv.value;
+            input_last_name = lower_value;
         }
     }
 
-    const existing_email = try app.pool.rowOpts(
+    var existing_email = try app.pool.rowOpts(
         "SELECT email FROM users WHERE email = $1", 
-        .{input_email}, .{.release_conn = true}) orelse {
+        .{input_email}, .{.release_conn = true});
+
+    if (existing_email != null) {
         const register_html = @embedFile("static/register.html");
         res.body = try std.mem.replaceOwned(u8, res.arena, register_html, "hidden", "");
         res.status = 200;
         res.content_type = .HTML;
+        try existing_email.?.deinit();
         return;
-    };
-    print("\n{any}\n", .{existing_email});
+    }
 
     const uuid = try generateUUIDv4(res.arena);
     const role = "user";
