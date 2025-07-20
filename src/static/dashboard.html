@@ -1,10 +1,5 @@
 <div class="centered_form_inner_style grid-rows-3" id="content">
 
-  <script>
-    document.getElementById('date').valueAsDate = new Date();
-
-  </script>
-
   <div class="flex items-center justify-between mb-4 row-span-1">  
     <div id="welcome_message" hx-get="welcome_message" hx-target="#welcome_message" hx-swap="outerHTML" hx-trigger="load"></div> 
     <button 
@@ -19,8 +14,9 @@
 
   <form 
     id="new_exercise_form"
-    hx-put="/submit_workout" 
-    hx-swap="none"
+    hx-put="/workout_submit" 
+    hx-swap = "beforeend"
+    hx-target = "#workout_tbody"
     class="flex items-center gap-4 centered_form row-span-2"
     title="Add New Exercise"
   >
@@ -95,11 +91,11 @@
     </tr>
   </thead>
 
-  <tbody id="workout_body" 
+  <tbody id="workout_tbody" 
   class="row-span-3"
-  hx-get="/cell_workout"
+  hx-get="/workout_table"
   hx-swap="innerHTML"
-  hx-trigger="load, submit from:#new_exercise_form">
+  hx-trigger="load">
   </tbody>
 
 </table>

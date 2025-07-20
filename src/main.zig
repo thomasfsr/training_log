@@ -82,9 +82,8 @@ pub fn main() !void {
     // -------- Endpoints of divs.
     router.put("/writing_user", writing_user, .{});
     router.get("/welcome_message", welcome_message, .{});
-    router.put("/submit_workout", submit_workout, .{});
-    router.get("/cell_workout", cell_workout, .{});
-    router.get("/dashboard_form", dashboard_form, .{});
+    router.put("/workout_submit", workout_submit, .{});
+    router.get("/workout_table", workout_table, .{});
 
     router.get("/error", @"error", .{});
 
@@ -361,7 +360,7 @@ fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.body = login_html;
 }
 
-fn submit_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+fn workout_submit(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "true") == false) {
         res.status = 404;
@@ -397,20 +396,47 @@ fn submit_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         if (std.mem.eql(u8, kv.key, "reps")) {
             reps = lower_value;
         }
+        if (std.mem.eql(u8, kv.key, "date")) {
+            const date = lower_value;
+            print("{s}", .{date});
+        }
     }
     if (exercise.len > 0) {
-        _ = app.pool.exec("INSERT INTO workout_logs (user_id, exercise, weight, sets, reps) VALUES ($1::uuid, $2, $3, $4, $5);", .{ user_id, exercise, weight, sets, reps }) catch |err| {
+        _ = app.pool.exec("INSERT INTO workout_logs (user_id, exercise, weight, sets, reps) VALUES ($1::uuid, $2, $3, $4, $5);", 
+        .{ user_id, exercise, weight, sets, reps, }) catch |err| {
             std.debug.print("Database error: {}\n", .{err});
             res.status = 400;
             return;
         };
         res.status = 200;
         res.content_type = .HTML;
-        res.body = "Sucessfully Registered!";
+        const body = try std.fmt.allocPrint(res.arena,
+            \\<tr class=ts_style>
+            \\  <td class=td_style>
+            \\  {s}
+            \\  </td>
+            \\  <td class=td_style>
+            \\  {s}
+            \\  </td>
+            \\  <td class=td_style>
+            \\  {s}
+            \\  </td>
+            \\  <td class=td_style>
+            \\  {s}
+            \\  </td>
+            \\  <td class=td_style>
+            \\  2025-07-14 
+            \\  </td>
+            \\  <td class=td_style>
+            \\      <input type="checkbox" name="delete_it" value="Delete" class="scale-150">
+            \\  </td>
+            \\</tr>
+            ,.{exercise, weight, sets, reps});
+        res.body = body;
     }
 }
 
-fn cell_workout(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+fn workout_table(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "true") == false) {
         res.body = "NOPE!";
@@ -485,13 +511,5 @@ fn welcome_message(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.body = try std.fmt.allocPrint(res.arena, "Welcome {s} {s} - {s}", .{first_name, last_name, email});
     res.status = 200;
     res.content_type = .HTML;
-    return;
-}
-
-fn dashboard_form(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
-    const html = @embedFile("static/dashboard_form.html");
-    res.body = html;
-    res.content_type = .HTML;
-    res.status = 200;
     return;
 }
