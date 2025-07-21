@@ -316,7 +316,7 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         .path = "/",
         .domain = "",
         .max_age = 60,
-        .secure = false, // in production set to true (https only)
+        .secure = false,
         .http_only = true,
         .partitioned = false,
         .same_site = .lax,
