@@ -172,7 +172,7 @@ fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
 
 fn login_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true") == false) {
+    if (std.mem.eql(u8, is_hx, "false")) {
         res.body = "NOPE!";
         res.status = 404;
         return;
