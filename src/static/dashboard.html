@@ -1,7 +1,7 @@
 <div class="centered_form_inner_style grid-rows-3" id="content">
 
   <div class="flex items-center justify-between mb-4 row-span-1">  
-    <div>Welcome {s} {s} - {s}</div> 
+    <div>Welcome {{first_name}} {{last_name}} - {{email}}</div> 
     <button 
       hx-get="/back_to_login" 
       hx-target="#content"
@@ -14,7 +14,8 @@
 
   <form 
     id="new_exercise_form"
-    hx-put="/workout_submit" 
+    hx-put="/workout_submit"
+    hx-oob-swap = "true"
     hx-swap = "beforeend"
     hx-target = "#workout_tbody"
     class="flex items-center gap-4 centered_form row-span-2"
@@ -91,11 +92,8 @@
     </tr>
   </thead>
 
-  <tbody id="workout_tbody" 
-  class="row-span-3"
-  hx-get="/workout_table"
-  hx-swap="innerHTML"
-  hx-trigger="load">
+  <tbody id="workout_tbody" class="row-span-3">
+  {{workout_table}}
   </tbody>
 
 </table>

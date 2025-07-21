@@ -78,7 +78,6 @@ pub fn main() !void {
     // -------- Endpoints of divs.
     router.put("/writing_user", writing_user, .{});
     router.put("/workout_submit", workout_submit, .{});
-    router.get("/workout_table", workout_table, .{});
 
     router.get("/error", @"error", .{});
 
@@ -245,18 +244,18 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         }
     }
 
-    var row = try app.pool.row("SELECT id, email, hashed_pwd, first_name, last_name FROM users WHERE email = $1", .{input_email}) orelse {
+    var user_row = try app.pool.row("SELECT id, email, hashed_pwd, first_name, last_name FROM users WHERE email = $1", .{input_email}) orelse {
         login_with_error;
         return;
     };
-    defer row.deinit() catch {};
+    defer user_row.deinit() catch {};
 
-    const bytes_user_id = row.get([]u8, 0);
+    const bytes_user_id = user_row.get([]u8, 0);
     const user_id = try decodeUUIDv4(res.arena, bytes_user_id);
-    const user_email = row.get([]u8, 1);
-    const user_hashed_pwd = row.get([]u8, 2);
-    const user_first_name = row.get([]u8, 3);
-    const user_last_name = row.get([]u8, 4);
+    const user_email = user_row.get([]u8, 1);
+    const user_hashed_pwd = user_row.get([]u8, 2);
+    const user_first_name = user_row.get([]u8, 3);
+    const user_last_name = user_row.get([]u8, 4);
 
     const valid_password = bcrypt_verify(user_hashed_pwd, input_password);
 
@@ -267,7 +266,49 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const session_token = try generateUUIDv4(res.arena);
     _ = try app.pool.exec("INSERT INTO session_state VALUES ($1::uuid, $2::uuid)", .{ session_token, user_id });
 
-    const html_dashboard_filled = try std.fmt.allocPrint(res.arena, html_dashboard, .{ user_first_name, user_last_name, user_email });
+    // const html_dashboard_filled = try std.fmt.allocPrint(res.arena, html_dashboard, .{ user_first_name, user_last_name, user_email });
+    var html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{first_name}}", user_first_name);
+    html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard_filled, "{{last_name}}", user_last_name);
+    html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard_filled, "{{email}}", user_email);
+
+    const wo_data = try app.pool.query("SELECT exercise, weight, sets, reps, created_at FROM workout_logs WHERE user_id = $1::uuid;", .{user_id});
+    defer wo_data.deinit();
+
+    var table_html = std.ArrayList(u8).init(res.arena);
+    const writer = table_html.writer();
+
+    while (true) {
+        const row = try wo_data.next() orelse break;
+        const exercise: []u8 = row.get([]u8, 0);
+        const weight: i32 = row.get(i32, 1);
+        const sets: i32 = row.get(i32, 2);
+        const reps: i32 = row.get(i32, 3);
+        const created_at: i64 = row.get(i64, 4);
+        const created_at_str: []u8 = try printUnixMicroTimestamp(created_at, res.arena);
+        try writer.print(
+            \\<tr class=ts_style>
+            \\  <td class=td_style>
+            \\  {s}
+            \\  </td>
+            \\  <td class=td_style>
+            \\  {d}
+            \\  </td>
+            \\  <td class=td_style>
+            \\  {d}
+            \\  </td>
+            \\  <td class=td_style>
+            \\  {d}
+            \\  </td>
+            \\  <td class=td_style>
+            \\  {s}
+            \\  </td>
+            \\  <td class=td_style>
+            \\      <input type="checkbox" name="delete_it" value="Delete" class="scale-150">
+            \\  </td>
+            \\</tr>
+        , .{ exercise, weight, sets, reps, created_at_str });
+    }
+
     const cookie_options = httpz.response.CookieOpts{
         .path = "/",
         .domain = "",
@@ -280,6 +321,17 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     try res.setCookie("session_token", session_token, cookie_options);
     try res.setCookie("user_id", user_id, cookie_options);
     try res.setCookie("email", user_email, cookie_options);
+    
+    if (table_html.items.len  == 0) {
+        html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard_filled, "{{workout_table}}", "");
+        res.body = html_dashboard_filled;
+        res.content_type = .HTML;
+        res.status = 200;
+        return;
+    }
+
+    const table_html_items = table_html.items;
+    html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard_filled, "{{workout_table}}", table_html_items);
     res.body = html_dashboard_filled;
     res.content_type = .HTML;
     res.status = 200;
@@ -437,70 +489,5 @@ fn workout_submit(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
             \\</tr>
         , .{ exercise, weight, sets, reps });
         res.body = body;
-    }
-}
-
-fn workout_table(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true") == false) {
-        res.body = "NOPE!";
-        res.status = 404;
-        return;
-    }
-
-    const user_id = req.cookies().get("user_id") orelse {
-        res.status = 200;
-        res.header("HX-Refresh", "true");
-        return;
-    };
-
-    const wo_data = try app.pool.query("SELECT exercise, weight, sets, reps, created_at FROM workout_logs WHERE user_id = $1::uuid;", .{user_id});
-    defer wo_data.deinit();
-
-    var html = std.ArrayList(u8).init(res.arena);
-    const writer = html.writer();
-
-    while (true) {
-        const row = try wo_data.next() orelse break;
-        const exercise: []u8 = row.get([]u8, 0);
-        const weight: i32 = row.get(i32, 1);
-        const sets: i32 = row.get(i32, 2);
-        const reps: i32 = row.get(i32, 3);
-        const created_at: i64 = row.get(i64, 4);
-        const created_at_str: []u8 = try printUnixMicroTimestamp(created_at, res.arena);
-        try writer.print(
-            \\<tr class=ts_style>
-            \\  <td class=td_style>
-            \\  {s}
-            \\  </td>
-            \\  <td class=td_style>
-            \\  {d}
-            \\  </td>
-            \\  <td class=td_style>
-            \\  {d}
-            \\  </td>
-            \\  <td class=td_style>
-            \\  {d}
-            \\  </td>
-            \\  <td class=td_style>
-            \\  {s}
-            \\  </td>
-            \\  <td class=td_style>
-            \\      <input type="checkbox" name="delete_it" value="Delete" class="scale-150">
-            \\  </td>
-            \\</tr>
-        , .{ exercise, weight, sets, reps, created_at_str });
-    }
-
-    if (html.items.len > 0) {
-        res.body = html.items;
-        res.content_type = .HTML;
-        res.status = 200;
-        return;
-    } else {
-        res.body = "";
-        res.content_type = .HTML;
-        res.status = 200;
-        return;
     }
 }
