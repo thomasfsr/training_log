@@ -149,7 +149,7 @@ fn printUnixMicroTimestamp(unix_micro: i64, alloc: std.mem.Allocator) ![]u8 {
 fn @"error"(_: *App, _: *httpz.Request, _: *httpz.Response) !void {
     return error.ActionError;
 }
-
+// - tailwind - 
 fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     const file_path = "./src/css/out.css";
     const file = try std.fs.cwd().openFile(file_path, .{});
@@ -162,6 +162,7 @@ fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 
+// - index -
 fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     const html_index = @embedFile("static/index.html");
     res.body = html_index;
@@ -170,6 +171,7 @@ fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 
+// - login -
 fn login_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "false")) {
@@ -194,9 +196,10 @@ fn login_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 
+// - back to login -
 fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true") == false) {
+    if (std.mem.eql(u8, is_hx, "false")) {
         res.body = "NOPE!";
         res.status = 404;
         return;
@@ -214,9 +217,10 @@ fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 
+// - dashboard - 
 fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true") == false) {
+    if (std.mem.eql(u8, is_hx, "false")) {
         res.body = "NOPE!";
         res.status = 404;
         return;
@@ -266,7 +270,6 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const session_token = try generateUUIDv4(res.arena);
     _ = try app.pool.exec("INSERT INTO session_state VALUES ($1::uuid, $2::uuid)", .{ session_token, user_id });
 
-    // const html_dashboard_filled = try std.fmt.allocPrint(res.arena, html_dashboard, .{ user_first_name, user_last_name, user_email });
     var html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{first_name}}", user_first_name);
     html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard_filled, "{{last_name}}", user_last_name);
     html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard_filled, "{{email}}", user_email);
@@ -338,19 +341,22 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 
+// - register - 
 fn register_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true") == false) {
+    if (std.mem.eql(u8, is_hx, "false")) {
         res.body = "NOPE!";
         res.status = 404;
         return;
     }
+
     const register_html = @embedFile("static/register.html");
     res.body = register_html;
     res.content_type = .HTML;
     res.status = 200;
 }
 
+// - registering user - 
 fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "true") == false) {
@@ -411,11 +417,12 @@ fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.body = login_html;
 }
 
+// - workout submit -
 fn workout_submit(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "true") == false) {
-        res.status = 404;
+    if (std.mem.eql(u8, is_hx, "false")) {
         res.body = "NOPE!";
+        res.status = 404;
         return;
     }
 
