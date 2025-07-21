@@ -179,8 +179,22 @@ fn login_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
         res.status = 404;
         return;
     }
-
     const html_login = @embedFile("static/login.html");
+
+    const query = try req.query();
+    const is_back = query.get("back") != null;
+
+    if (is_back) {
+        res.header("Set-Cookie", "session_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
+        res.header("Set-Cookie", "user_id=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
+        res.header("Set-Cookie", "email=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
+
+        res.body = html_login;
+        res.content_type = .HTML;
+        res.status = 200;
+        return;
+    }
+
     const html_dashboard = @embedFile("static/dashboard.html");
 
     _ = req.cookies().get("session_token") orelse {

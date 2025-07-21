@@ -3,7 +3,7 @@
   <div class="flex items-center justify-between mb-4 row-span-1">  
     <div>Welcome {{first_name}} {{last_name}} - {{email}}</div> 
     <button 
-      hx-get="/back_to_login" 
+      hx-get="/login?back=1" 
       hx-target="#content"
       hx-swap="outerHTML"
       class="button_style"
