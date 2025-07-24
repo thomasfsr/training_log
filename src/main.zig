@@ -287,16 +287,17 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     try res.setCookie("email", user_email, cookie_options);
     try res.setCookie("first_name", user_first_name, cookie_options);
     try res.setCookie("last_name", user_last_name, cookie_options);
-    res.status = 200;
-    res.content_type = .HTML;
     res.header("HX-Location",
         \\{"path":"/dashboard", "target":"#content", "swap":"outerHTML", "hx-request":"true"}
     );
+    res.header("HX-Replace-Url", "false");
     return;
 }
 
 // - HX-GET - DASHBOARD -
 fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+
+    // You should implement back the validation of the life of the token in the dash. If it expired, it should return res.body = NOPE!.
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "false")) {
         res.body = "NOPE!";
