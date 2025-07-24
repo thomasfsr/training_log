@@ -77,7 +77,7 @@ pub fn main() !void {
 
     // -------- Endpoints of divs.
     router.put("/writing_user", writing_user, .{});
-    router.put("/workout_submit", workout_submit, .{});
+    router.put("/exercise_adding", exercise_adding, .{});
 
     router.get("/error", @"error", .{});
 
@@ -149,7 +149,7 @@ fn printUnixMicroTimestamp(unix_micro: i64, alloc: std.mem.Allocator) ![]u8 {
 fn @"error"(_: *App, _: *httpz.Request, _: *httpz.Response) !void {
     return error.ActionError;
 }
-// - tailwind - 
+// - HX-GET - tailwind - 
 fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     const file_path = "./src/css/out.css";
     const file = try std.fs.cwd().openFile(file_path, .{});
@@ -162,16 +162,44 @@ fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 
-// - index -
-fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
+// - INDEX PAGE -
+fn index(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const html_index = @embedFile("static/index.html");
-    res.body = html_index;
+
+    // - back-to-login logic -
+
+    const query = try req.query();
+    const is_back = query.get("back") != null;
+    if (is_back) {
+        res.header("Set-Cookie", "session_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
+        res.header("Set-Cookie", "user_id=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
+        res.header("Set-Cookie", "email=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
+        res.body = try std.mem.replaceOwned(u8, res.arena, html_index, "{{route}}", "/login");
+        res.content_type = .HTML;
+        res.status = 200;
+        return;
+    }
+
+    // - token validation - 
+
+    const token = req.cookies().get("email");
+
+    if (token != null) {
+        res.body = try std.mem.replaceOwned(u8, res.arena, html_index, "{{route}}", "/dashboard");
+        res.content_type = .HTML;
+        res.status = 200;
+        return;
+    }
+
+    // - default as login page - 
+
+    res.body = try std.mem.replaceOwned(u8, res.arena, html_index, "{{route}}", "/login");
     res.content_type = .HTML;
     res.status = 200;
     return;
 }
 
-// - login -
+// - HX-GET - LOGIN - 
 fn login_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "false")) {
@@ -180,21 +208,6 @@ fn login_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     }
     const html_login = @embedFile("static/login.html");
-
-    const query = try req.query();
-    const is_back = query.get("back") != null;
-
-    if (is_back) {
-        res.header("Set-Cookie", "session_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
-        res.header("Set-Cookie", "user_id=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
-        res.header("Set-Cookie", "email=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
-
-        res.body = html_login;
-        res.content_type = .HTML;
-        res.status = 200;
-        return;
-    }
-
     const html_dashboard = @embedFile("static/dashboard.html");
 
     _ = req.cookies().get("session_token") orelse {
@@ -231,7 +244,7 @@ fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 
-// - dashboard - 
+// - HX-GET - DASHBOARD - 
 fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "false")) {
@@ -355,7 +368,7 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 
-// - register - 
+// - HX-GET - REGISTER - 
 fn register_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "false")) {
@@ -431,8 +444,8 @@ fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.body = login_html;
 }
 
-// - workout submit -
-fn workout_submit(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+// - HX-POST - EXERCISE - 
+fn exercise_adding(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "false")) {
         res.body = "NOPE!";

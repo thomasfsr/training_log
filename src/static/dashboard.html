@@ -3,7 +3,7 @@
   <div class="flex items-center justify-between mb-4 row-span-1">  
     <div>Welcome {{first_name}} {{last_name}} - {{email}}</div> 
     <button 
-      hx-get="/login?back=1" 
+      hx-get="/?back=1" 
       hx-target="#content"
       hx-swap="outerHTML"
       class="button_style"
@@ -14,7 +14,7 @@
 
   <form 
     id="new_exercise_form"
-    hx-put="/workout_submit"
+    hx-put="/exercise_adding"
     hx-oob-swap = "true"
     hx-swap = "beforeend"
     hx-target = "#workout_tbody"
