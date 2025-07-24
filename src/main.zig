@@ -245,7 +245,7 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     var user_row = try app.pool.row("SELECT id, email, hashed_pwd, first_name, last_name FROM users WHERE email = $1", .{input_email}) orelse {
         res.body =
-            \\<div class="mb-4 h-6 text-red-500" hidden id="hidden_alert" hx-swap-oob="true"> Password or Email invalid!</div>
+            \\<div class="mb-4 h-6 text-red-500" id="hidden_alert" hx-swap-oob="true"> Password or Email invalid!</div>
         ;
         res.status = 200;
         res.content_type = .HTML;
