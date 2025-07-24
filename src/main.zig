@@ -73,7 +73,6 @@ pub fn main() !void {
     router.get("/login", login_page, .{});
     router.get("/register", register_page, .{});
     router.put("/dashboard", dashboard_page, .{});
-    router.get("/back_to_login", back_to_login, .{});
 
     // -------- Endpoints of divs.
     router.put("/writing_user", writing_user, .{});
@@ -182,9 +181,8 @@ fn index(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     // - token validation - 
 
-    const token = req.cookies().get("email");
-
-    if (token != null) {
+    const token_email = req.cookies().get("email");
+    if (token_email != null) {
         res.body = try std.mem.replaceOwned(u8, res.arena, html_index, "{{route}}", "/dashboard");
         res.content_type = .HTML;
         res.status = 200;
@@ -208,23 +206,14 @@ fn login_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     }
     const html_login = @embedFile("static/login.html");
-    const html_dashboard = @embedFile("static/dashboard.html");
-
-    _ = req.cookies().get("session_token") orelse {
-        res.body = html_login;
-        res.content_type = .HTML;
-        res.status = 200;
-        return;
-    };
-
-    res.body = html_dashboard;
+    res.body = html_login;
     res.content_type = .HTML;
     res.status = 200;
     return;
 }
 
-// - back to login -
-fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
+// - HX-GET - REGISTER - 
+fn register_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "false")) {
         res.body = "NOPE!";
@@ -232,16 +221,10 @@ fn back_to_login(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     }
 
-    const html_index = @embedFile("static/login.html");
-
-    res.header("Set-Cookie", "session_token=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
-    res.header("Set-Cookie", "user_id=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
-    res.header("Set-Cookie", "email=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/;");
-
-    res.body = html_index;
+    const register_html = @embedFile("static/register.html");
+    res.body = register_html;
     res.content_type = .HTML;
     res.status = 200;
-    return;
 }
 
 // - HX-GET - DASHBOARD - 
@@ -366,21 +349,6 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.content_type = .HTML;
     res.status = 200;
     return;
-}
-
-// - HX-GET - REGISTER - 
-fn register_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "false")) {
-        res.body = "NOPE!";
-        res.status = 404;
-        return;
-    }
-
-    const register_html = @embedFile("static/register.html");
-    res.body = register_html;
-    res.content_type = .HTML;
-    res.status = 200;
 }
 
 // - registering user - 
