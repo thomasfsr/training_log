@@ -68,11 +68,12 @@ pub fn main() !void {
     // - html -
     // -------- Root endpoint has CONTENT.
     router.get("/", index, .{});
+    router.put("/auth", auth, .{});
 
     // -------- Endpoints that swaps the CONTENT.
     router.get("/login", login_page, .{});
     router.get("/register", register_page, .{});
-    router.put("/dashboard", dashboard_page, .{});
+    router.get("/dashboard", dashboard_page, .{});
 
     // -------- Endpoints of divs.
     router.put("/writing_user", writing_user, .{});
@@ -148,7 +149,7 @@ fn printUnixMicroTimestamp(unix_micro: i64, alloc: std.mem.Allocator) ![]u8 {
 fn @"error"(_: *App, _: *httpz.Request, _: *httpz.Response) !void {
     return error.ActionError;
 }
-// - HX-GET - tailwind - 
+// - HX-GET - tailwind -
 fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     const file_path = "./src/css/out.css";
     const file = try std.fs.cwd().openFile(file_path, .{});
@@ -179,7 +180,7 @@ fn index(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     }
 
-    // - token validation - 
+    // - token validation -
 
     const token_email = req.cookies().get("email");
     if (token_email != null) {
@@ -189,7 +190,7 @@ fn index(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     }
 
-    // - default as login page - 
+    // - default as login page -
 
     res.body = try std.mem.replaceOwned(u8, res.arena, html_index, "{{route}}", "/login");
     res.content_type = .HTML;
@@ -197,7 +198,7 @@ fn index(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 
-// - HX-GET - LOGIN - 
+// - HX-GET - LOGIN -
 fn login_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "false")) {
@@ -212,7 +213,7 @@ fn login_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 
-// - HX-GET - REGISTER - 
+// - HX-GET - REGISTER -
 fn register_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "false")) {
@@ -227,24 +228,8 @@ fn register_page(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.status = 200;
 }
 
-// - HX-GET - DASHBOARD - 
-fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
-    const is_hx = req.headers.get("hx-request") orelse "false";
-    if (std.mem.eql(u8, is_hx, "false")) {
-        res.body = "NOPE!";
-        res.status = 404;
-        return;
-    }
-
-    const login_html = @embedFile("static/login.html");
-    const html_dashboard = @embedFile("static/dashboard.html");
-
-    const login_with_error = {
-        res.body = try std.mem.replaceOwned(u8, res.arena, login_html, "hidden", "");
-        res.status = 200;
-        res.content_type = .HTML;
-    };
-
+// - HX-PUT - AUTH -
+fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     var input_email: []const u8 = "";
     var input_password: []const u8 = "";
 
@@ -259,7 +244,11 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     }
 
     var user_row = try app.pool.row("SELECT id, email, hashed_pwd, first_name, last_name FROM users WHERE email = $1", .{input_email}) orelse {
-        login_with_error;
+        res.body =
+            \\<div class="mb-4 h-6 text-red-500" hidden id="hidden_alert" hx-swap-oob="true"> Password or Email invalid!</div>
+        ;
+        res.status = 200;
+        res.content_type = .HTML;
         return;
     };
     defer user_row.deinit() catch {};
@@ -274,11 +263,52 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const valid_password = bcrypt_verify(user_hashed_pwd, input_password);
 
     if (valid_password == false) {
-        login_with_error;
+        res.body =
+            \\<div class="mb-4 h-6 text-red-500" id="hidden_alert" hx-swap-oob="true"> Password or Email invalid!</div>
+        ;
+        res.status = 200;
+        res.content_type = .HTML;
         return;
     }
     const session_token = try generateUUIDv4(res.arena);
     _ = try app.pool.exec("INSERT INTO session_state VALUES ($1::uuid, $2::uuid)", .{ session_token, user_id });
+
+    const cookie_options = httpz.response.CookieOpts{
+        .path = "/",
+        .domain = "",
+        .max_age = 60,
+        .secure = false,
+        .http_only = true,
+        .partitioned = false,
+        .same_site = .lax,
+    };
+    try res.setCookie("session_token", session_token, cookie_options);
+    try res.setCookie("user_id", user_id, cookie_options);
+    try res.setCookie("email", user_email, cookie_options);
+    try res.setCookie("first_name", user_first_name, cookie_options);
+    try res.setCookie("last_name", user_last_name, cookie_options);
+    res.status = 200;
+    res.content_type = .HTML;
+    res.header("HX-Location",
+        \\{"path":"/dashboard", "target":"#content", "swap":"outerHTML", "hx-request":"true"}
+    );
+    return;
+}
+
+// - HX-GET - DASHBOARD -
+fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    const is_hx = req.headers.get("hx-request") orelse "false";
+    if (std.mem.eql(u8, is_hx, "false")) {
+        res.body = "NOPE!";
+        res.status = 404;
+        return;
+    }
+    const user_id = req.cookies().get("user_id") orelse "";
+    const user_first_name = req.cookies().get("first_name") orelse "";
+    const user_last_name = req.cookies().get("last_name") orelse "";
+    const user_email = req.cookies().get("email") orelse "";
+
+    const html_dashboard = @embedFile("static/dashboard.html");
 
     var html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{first_name}}", user_first_name);
     html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard_filled, "{{last_name}}", user_last_name);
@@ -322,20 +352,20 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         , .{ exercise, weight, sets, reps, created_at_str });
     }
 
-    const cookie_options = httpz.response.CookieOpts{
-        .path = "/",
-        .domain = "",
-        .max_age = 60,
-        .secure = false,
-        .http_only = true,
-        .partitioned = false,
-        .same_site = .lax,
-    };
-    try res.setCookie("session_token", session_token, cookie_options);
-    try res.setCookie("user_id", user_id, cookie_options);
-    try res.setCookie("email", user_email, cookie_options);
-    
-    if (table_html.items.len  == 0) {
+    //    const cookie_options = httpz.response.CookieOpts{
+    //        .path = "/",
+    //        .domain = "",
+    //        .max_age = 60,
+    //        .secure = false,
+    //        .http_only = true,
+    //        .partitioned = false,
+    //        .same_site = .lax,
+    //    };
+    //    try res.setCookie("session_token", session_token, cookie_options);
+    //    try res.setCookie("user_id", user_id, cookie_options);
+    //    try res.setCookie("email", user_email, cookie_options);
+
+    if (table_html.items.len == 0) {
         html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard_filled, "{{workout_table}}", "");
         res.body = html_dashboard_filled;
         res.content_type = .HTML;
@@ -351,7 +381,7 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 
-// - registering user - 
+// - registering user -
 fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "true") == false) {
@@ -412,7 +442,7 @@ fn writing_user(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.body = login_html;
 }
 
-// - HX-POST - EXERCISE - 
+// - HX-POST - EXERCISE -
 fn exercise_adding(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "false")) {

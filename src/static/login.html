@@ -1,7 +1,7 @@
 <div id="content" class="centered_form_inner_style">
     <h2 class="page_title_style flex flex-col">Login</h2>
     <form
-        hx-put="/dashboard" 
+        hx-put="/auth" 
         hx-target="#content" 
         hx-swap="outerHTML"
         hx-trigger="submit">
@@ -28,7 +28,7 @@
                 required>
         </div>
 
-        <div class="mb-4 h-6 text-red-500" hidden> Password or Email invalid!</div>
+        <div class="mb-4 h-6 text-red-500" hidden id="hidden_alert"> Password or Email invalid!</div>
 
         <div class="flex items-center justify-between flex flex-col">
             <button
