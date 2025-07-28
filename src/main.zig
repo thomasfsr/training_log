@@ -97,6 +97,7 @@ fn decodeCookieValue(value: []const u8) ![]const u8 {
     if (std.mem.indexOf(u8, trimmed, "%") == null) return trimmed;
 }
 
+
 fn bcrypt_encoder(pwd: []const u8, alloc: std.mem.Allocator) ![]const u8 {
     const buf = try alloc.alloc(u8, 60);
     const options = std.crypto.pwhash.bcrypt.HashOptions{ .params = std.crypto.pwhash.bcrypt.Params.owasp, .encoding = std.crypto.pwhash.Encoding.crypt };
@@ -144,6 +145,10 @@ fn printUnixMicroTimestamp(unix_micro: i64, alloc: std.mem.Allocator) ![]u8 {
     _ = c.strftime(&buffer[0], buffer.len, "%Y-%m-%d", tm_ptr);
     return buffer;
 }
+
+fn isSafeChar(chara: u8) bool {
+    return std.ascii.isAlphanumeric(chara) or chara == '-' or chara == '_' or chara == '.' or chara == '~';
+    }
 //------------------------- Functions --------------------------------------
 
 fn @"error"(_: *App, _: *httpz.Request, _: *httpz.Response) !void {
@@ -167,7 +172,6 @@ fn index(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const html_index = @embedFile("static/index.html");
 
     // - back-to-login logic -
-
     const query = try req.query();
     const is_back = query.get("back") != null;
     if (is_back) {
@@ -258,8 +262,15 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const user_email = user_row.get([]u8, 1);
     const user_hashed_pwd = user_row.get([]u8, 2);
     const user_first_name = user_row.get([]u8, 3);
-    const user_last_name = user_row.get([]u8, 4);
 
+    // -- user encoding --
+    var list = std.ArrayList(u8).init(res.arena);
+    defer list.deinit();
+    try std.Uri.Component.percentEncode(list.writer(), user_first_name, isSafeChar);
+    const first_name_encoded = try list.toOwnedSlice();
+    print("\n {s} \n", .{first_name_encoded});
+    // -- end of user encoding --
+    const user_last_name = user_row.get([]u8, 4);
     const valid_password = bcrypt_verify(user_hashed_pwd, input_password);
 
     if (valid_password == false) {
@@ -285,12 +296,9 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     try res.setCookie("session_token", session_token, cookie_options);
     try res.setCookie("user_id", user_id, cookie_options);
     try res.setCookie("email", user_email, cookie_options);
-    try res.setCookie("first_name", user_first_name, cookie_options);
+    try res.setCookie("first_name", first_name_encoded, cookie_options);
     try res.setCookie("last_name", user_last_name, cookie_options);
-    res.header("HX-Location",
-        \\{"path":"/dashboard", "target":"#content", "swap":"outerHTML", "hx-request":"true"}
-    );
-    res.header("HX-Replace-Url", "false");
+    res.header("hx-refresh", "true");
     return;
 }
 
@@ -300,20 +308,26 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     // You should implement back the validation of the life of the token in the dash. If it expired, it should return res.body = NOPE!.
     const is_hx = req.headers.get("hx-request") orelse "false";
     if (std.mem.eql(u8, is_hx, "false")) {
-        res.body = "NOPE!";
+        res.body = "Olá!";
         res.status = 404;
         return;
     }
     const user_id = req.cookies().get("user_id") orelse "";
+    // -- decode first name --
     const user_first_name = req.cookies().get("first_name") orelse "";
+    const output_buffer = try res.arena.alloc(u8, user_first_name.len);
+    const user_first_name_decoded = std.Uri.percentDecodeBackwards(output_buffer, user_first_name);
+    print("\n{s}\n", .{user_first_name_decoded});
+    // -- end decoded --
+
     const user_last_name = req.cookies().get("last_name") orelse "";
     const user_email = req.cookies().get("email") orelse "";
 
-    const html_dashboard = @embedFile("static/dashboard.html");
-
-    var html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{first_name}}", user_first_name);
-    html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard_filled, "{{last_name}}", user_last_name);
-    html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard_filled, "{{email}}", user_email);
+    const html_dashboard_load = @embedFile("static/dashboard.html");
+    var html_dashboard = try std.fmt.allocPrint(res.arena, "{s}", .{html_dashboard_load});
+    html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{first_name}}", user_first_name_decoded);
+    html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{last_name}}", user_last_name);
+    html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{email}}", user_email);
 
     const wo_data = try app.pool.query("SELECT exercise, weight, sets, reps, created_at FROM workout_logs WHERE user_id = $1::uuid;", .{user_id});
     defer wo_data.deinit();
@@ -367,16 +381,16 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     //    try res.setCookie("email", user_email, cookie_options);
 
     if (table_html.items.len == 0) {
-        html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard_filled, "{{workout_table}}", "");
-        res.body = html_dashboard_filled;
+        html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{workout_table}}", "");
+        res.body = html_dashboard;
         res.content_type = .HTML;
         res.status = 200;
         return;
     }
 
     const table_html_items = table_html.items;
-    html_dashboard_filled = try std.mem.replaceOwned(u8, res.arena, html_dashboard_filled, "{{workout_table}}", table_html_items);
-    res.body = html_dashboard_filled;
+    html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{workout_table}}", table_html_items);
+    res.body = html_dashboard;
     res.content_type = .HTML;
     res.status = 200;
     return;
