@@ -97,7 +97,6 @@ fn decodeCookieValue(value: []const u8) ![]const u8 {
     if (std.mem.indexOf(u8, trimmed, "%") == null) return trimmed;
 }
 
-
 fn bcrypt_encoder(pwd: []const u8, alloc: std.mem.Allocator) ![]const u8 {
     const buf = try alloc.alloc(u8, 60);
     const options = std.crypto.pwhash.bcrypt.HashOptions{ .params = std.crypto.pwhash.bcrypt.Params.owasp, .encoding = std.crypto.pwhash.Encoding.crypt };
@@ -148,7 +147,7 @@ fn printUnixMicroTimestamp(unix_micro: i64, alloc: std.mem.Allocator) ![]u8 {
 
 fn isSafeChar(chara: u8) bool {
     return std.ascii.isAlphanumeric(chara) or chara == '-' or chara == '_' or chara == '.' or chara == '~';
-    }
+}
 //------------------------- Functions --------------------------------------
 
 fn @"error"(_: *App, _: *httpz.Request, _: *httpz.Response) !void {
@@ -261,16 +260,21 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const user_id = try decodeUUIDv4(res.arena, bytes_user_id);
     const user_email = user_row.get([]u8, 1);
     const user_hashed_pwd = user_row.get([]u8, 2);
-    const user_first_name = user_row.get([]u8, 3);
 
     // -- user encoding --
+    const user_first_name = user_row.get([]u8, 3);
     var list = std.ArrayList(u8).init(res.arena);
     defer list.deinit();
     try std.Uri.Component.percentEncode(list.writer(), user_first_name, isSafeChar);
     const first_name_encoded = try list.toOwnedSlice();
-    print("\n {s} \n", .{first_name_encoded});
-    // -- end of user encoding --
+
     const user_last_name = user_row.get([]u8, 4);
+    var list2 = std.ArrayList(u8).init(res.arena);
+    defer list2.deinit();
+    try std.Uri.Component.percentEncode(list2.writer(), user_last_name, isSafeChar);
+    const last_name_encoded = try list2.toOwnedSlice();
+    // -- end of user encoding --
+
     const valid_password = bcrypt_verify(user_hashed_pwd, input_password);
 
     if (valid_password == false) {
@@ -297,7 +301,7 @@ fn auth(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     try res.setCookie("user_id", user_id, cookie_options);
     try res.setCookie("email", user_email, cookie_options);
     try res.setCookie("first_name", first_name_encoded, cookie_options);
-    try res.setCookie("last_name", user_last_name, cookie_options);
+    try res.setCookie("last_name", last_name_encoded, cookie_options);
     res.header("hx-refresh", "true");
     return;
 }
@@ -313,20 +317,27 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     }
     const user_id = req.cookies().get("user_id") orelse "";
+
     // -- decode first name --
     const user_first_name = req.cookies().get("first_name") orelse "";
     const output_buffer = try res.arena.alloc(u8, user_first_name.len);
     const user_first_name_decoded = std.Uri.percentDecodeBackwards(output_buffer, user_first_name);
-    print("\n{s}\n", .{user_first_name_decoded});
+    const user_first_name_upper = try std.ascii.allocUpperString(res.arena, user_first_name_decoded);
     // -- end decoded --
 
+    // -- decode last name --
     const user_last_name = req.cookies().get("last_name") orelse "";
+    const output_buffer2 = try res.arena.alloc(u8, user_last_name.len);
+    const user_last_name_decoded = std.Uri.percentDecodeBackwards(output_buffer2, user_last_name);
+    const user_last_name_upper = try std.ascii.allocUpperString(res.arena, user_last_name_decoded);
+    // -- end decoded --
+
     const user_email = req.cookies().get("email") orelse "";
 
     const html_dashboard_load = @embedFile("static/dashboard.html");
     var html_dashboard = try std.fmt.allocPrint(res.arena, "{s}", .{html_dashboard_load});
-    html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{first_name}}", user_first_name_decoded);
-    html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{last_name}}", user_last_name);
+    html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{first_name}}", user_first_name_upper);
+    html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{last_name}}", user_last_name_upper);
     html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{email}}", user_email);
 
     const wo_data = try app.pool.query("SELECT exercise, weight, sets, reps, created_at FROM workout_logs WHERE user_id = $1::uuid;", .{user_id});
