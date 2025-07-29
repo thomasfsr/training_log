@@ -322,22 +322,21 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const user_first_name = req.cookies().get("first_name") orelse "";
     const output_buffer = try res.arena.alloc(u8, user_first_name.len);
     const user_first_name_decoded = std.Uri.percentDecodeBackwards(output_buffer, user_first_name);
-    const user_first_name_upper = try std.ascii.allocUpperString(res.arena, user_first_name_decoded);
+    
     // -- end decoded --
 
     // -- decode last name --
     const user_last_name = req.cookies().get("last_name") orelse "";
     const output_buffer2 = try res.arena.alloc(u8, user_last_name.len);
     const user_last_name_decoded = std.Uri.percentDecodeBackwards(output_buffer2, user_last_name);
-    const user_last_name_upper = try std.ascii.allocUpperString(res.arena, user_last_name_decoded);
     // -- end decoded --
 
     const user_email = req.cookies().get("email") orelse "";
 
     const html_dashboard_load = @embedFile("static/dashboard.html");
     var html_dashboard = try std.fmt.allocPrint(res.arena, "{s}", .{html_dashboard_load});
-    html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{first_name}}", user_first_name_upper);
-    html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{last_name}}", user_last_name_upper);
+    html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{first_name}}", user_first_name_decoded);
+    html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{last_name}}", user_last_name_decoded);
     html_dashboard = try std.mem.replaceOwned(u8, res.arena, html_dashboard, "{{email}}", user_email);
 
     const wo_data = try app.pool.query("SELECT exercise, weight, sets, reps, created_at FROM workout_logs WHERE user_id = $1::uuid;", .{user_id});
