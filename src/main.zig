@@ -13,12 +13,13 @@ const App = struct {
     pool: *pg.Pool,
     pub fn notFound(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
         res.status = 404;
-        res.body = "NOPE!";
+        res.body = "Not Found";
     }
     pub fn uncaughtError(_: *App, req: *httpz.Request, res: *httpz.Response, err: anyerror) void {
         std.debug.print("uncaught http error at {s}: {}\n", .{ req.url.path, err });
         res.status = 505;
-        res.body = "<!DOCTYPE html>(╯□°)╯︵ ┻━┻";
+        res.content_type = .TEXT;
+        res.body = "Something went wrong";
     }
 };
 
@@ -322,7 +323,7 @@ fn dashboard_page(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const user_first_name = req.cookies().get("first_name") orelse "";
     const output_buffer = try res.arena.alloc(u8, user_first_name.len);
     const user_first_name_decoded = std.Uri.percentDecodeBackwards(output_buffer, user_first_name);
-    
+
     // -- end decoded --
 
     // -- decode last name --
