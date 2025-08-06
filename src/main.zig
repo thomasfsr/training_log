@@ -160,7 +160,11 @@ fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     const file = try std.fs.cwd().openFile(file_path, .{});
     defer file.close();
 
-    const contents = try file.readToEndAlloc(res.arena, std.math.maxInt(usize));
+    var buffer: [10000]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&buffer);
+    const allocator = fba.allocator();
+
+    const contents = try file.readToEndAlloc(allocator, buffer.len);
     res.body = contents;
     res.content_type = .CSS;
     res.status = 200;
