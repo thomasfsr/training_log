@@ -156,16 +156,8 @@ fn @"error"(_: *App, _: *httpz.Request, _: *httpz.Response) !void {
 }
 // - HX-GET - tailwind -
 fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
-    const file_path = "./src/css/style.css";
-    const file = try std.fs.cwd().openFile(file_path, .{});
-    defer file.close();
-
-    var buffer: [10000]u8 = undefined;
-    var fba = std.heap.FixedBufferAllocator.init(&buffer);
-    const allocator = fba.allocator();
-
-    const contents = try file.readToEndAlloc(allocator, buffer.len);
-    res.body = contents;
+    const css = @embedFile("css/style.css");
+    res.body = css;
     res.content_type = .CSS;
     res.status = 200;
     return;
