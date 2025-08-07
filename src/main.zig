@@ -8,21 +8,9 @@ const c = @cImport({
 });
 
 //------------------------- BaseModels --------------------------------------
-const RouteEnum = enum {
-    Dashboard,
-    Login,
-    pub fn routeToPath(self: RouteEnum) []const u8 {
-    return switch (self) {
-        .Dashboard => "/dashboard",
-        .Login => "/login",
-    };
-}
-};
 
 const App = struct {
     pool: *pg.Pool,
-    index_route: RouteEnum,
-
     pub fn notFound(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
         res.status = 404;
         res.body = "Not Found";
@@ -33,14 +21,6 @@ const App = struct {
         res.content_type = .TEXT;
         res.body = "Something went wrong";
     }
-
-    pub fn indexDispatch(app: *App, action: httpz.Action(*App), req: *httpz.Request, res: *httpz.Response) !void {
-        const token_email = req.cookies().get("email");
-        if (token_email != null) {
-            app.index_route = .Dashboard;
-        } else {app.index_route = .Login;}
-        return action(app, req, res);
-        }
 };
 
 const User = struct {
@@ -66,7 +46,7 @@ pub fn main() !void {
     defer pool.deinit();
 
     // - Handler -
-    var app = App{ .pool = pool, .index_route = undefined};
+    var app = App{ .pool = pool };
 
     // - server -
     const PORT = 3000;
@@ -88,7 +68,7 @@ pub fn main() !void {
 
     // - html -
     // -------- Root endpoint has CONTENT.
-    router.get("/", index, .{.dispatcher = App.indexDispatch});
+    router.get("/", index, .{});
     router.put("/auth", auth, .{});
 
     // -------- Endpoints that swaps the CONTENT.
@@ -174,16 +154,25 @@ fn isSafeChar(chara: u8) bool {
 fn @"error"(_: *App, _: *httpz.Request, _: *httpz.Response) !void {
     return error.ActionError;
 }
-
+// - HX-GET - tailwind -
 fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
-    const css = @embedFile("css/out.css");
-    res.body = css;
+    const file_path = "./src/css/style.css";
+    const file = try std.fs.cwd().openFile(file_path, .{});
+    defer file.close();
+
+    var buffer: [10000]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&buffer);
+    const allocator = fba.allocator();
+
+    const contents = try file.readToEndAlloc(allocator, buffer.len);
+    res.body = contents;
     res.content_type = .CSS;
     res.status = 200;
     return;
 }
+
 // - INDEX PAGE -
-fn index(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+fn index(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const html_index = @embedFile("static/index.html");
 
     // - back-to-login logic -
@@ -199,7 +188,19 @@ fn index(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     }
 
-    res.body = try std.mem.replaceOwned(u8, res.arena, html_index, "{{route}}", app.index_route.routeToPath());
+    // - token validation -
+
+    const token_email = req.cookies().get("email");
+    if (token_email != null) {
+        res.body = try std.mem.replaceOwned(u8, res.arena, html_index, "{{route}}", "/dashboard");
+        res.content_type = .HTML;
+        res.status = 200;
+        return;
+    }
+
+    // - default as login page -
+
+    res.body = try std.mem.replaceOwned(u8, res.arena, html_index, "{{route}}", "/login");
     res.content_type = .HTML;
     res.status = 200;
     return;
