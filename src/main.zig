@@ -8,9 +8,21 @@ const c = @cImport({
 });
 
 //------------------------- BaseModels --------------------------------------
+const RouteEnum = enum {
+    Dashboard,
+    Login,
+    pub fn routeToPath(self: RouteEnum) []const u8 {
+    return switch (self) {
+        .Dashboard => "/dashboard",
+        .Login => "/login",
+    };
+}
+};
 
 const App = struct {
     pool: *pg.Pool,
+    index_route: RouteEnum,
+
     pub fn notFound(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
         res.status = 404;
         res.body = "Not Found";
@@ -21,6 +33,14 @@ const App = struct {
         res.content_type = .TEXT;
         res.body = "Something went wrong";
     }
+
+    pub fn indexDispatch(app: *App, action: httpz.Action(*App), req: *httpz.Request, res: *httpz.Response) !void {
+        const token_email = req.cookies().get("email");
+        if (token_email != null) {
+            app.index_route = .Dashboard;
+        } else {app.index_route = .Login;}
+        return action(app, req, res);
+        }
 };
 
 const User = struct {
@@ -46,7 +66,7 @@ pub fn main() !void {
     defer pool.deinit();
 
     // - Handler -
-    var app = App{ .pool = pool };
+    var app = App{ .pool = pool, .index_route = undefined};
 
     // - server -
     const PORT = 3000;
@@ -68,7 +88,7 @@ pub fn main() !void {
 
     // - html -
     // -------- Root endpoint has CONTENT.
-    router.get("/", index, .{});
+    router.get("/", index, .{.dispatcher = App.indexDispatch});
     router.put("/auth", auth, .{});
 
     // -------- Endpoints that swaps the CONTENT.
@@ -163,7 +183,7 @@ fn serve_tailwind(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     return;
 }
 // - INDEX PAGE -
-fn index(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
+fn index(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const html_index = @embedFile("static/index.html");
 
     // - back-to-login logic -
@@ -179,19 +199,7 @@ fn index(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
         return;
     }
 
-    // - token validation -
-
-    const token_email = req.cookies().get("email");
-    if (token_email != null) {
-        res.body = try std.mem.replaceOwned(u8, res.arena, html_index, "{{route}}", "/dashboard");
-        res.content_type = .HTML;
-        res.status = 200;
-        return;
-    }
-
-    // - default as login page -
-
-    res.body = try std.mem.replaceOwned(u8, res.arena, html_index, "{{route}}", "/login");
+    res.body = try std.mem.replaceOwned(u8, res.arena, html_index, "{{route}}", app.index_route.routeToPath());
     res.content_type = .HTML;
     res.status = 200;
     return;
