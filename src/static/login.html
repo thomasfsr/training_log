@@ -1,47 +1,44 @@
-<div id="content" class="centered_form_inner_style">
-    <h2 class="page_title_style flex flex-col">Login</h2>
+<div id="content">
+    <h2>Login</h2>
     <form
         hx-put="/auth" 
         hx-target="#content" 
         hx-trigger="submit"
         hx-swap="none">
 
-        <div class="mb-4" id="email">
-            <label class="label_input_style">
+        <div id="email">
+            <label >
                 Email
             </label>
             <input
                 id="user_email"
                 type="email"  
                 name="email"
-                class = "form_input_style"
                 required>
         </div>
-        <div class="mb-4" id="password">
-            <label class="label_input_style">
+        <div id="password">
+            <label >
                 Password
             </label>
             <input 
                 type="password"  
                 name="password"
-                class = "form_input_style"
                 required>
         </div>
 
-        <div class="mb-4 h-6 text-red-500" hidden id="hidden_alert"> Password or Email invalid!</div>
+        <div hidden id="hidden_alert"> Password or Email invalid!</div>
 
-        <div class="flex items-center justify-between flex flex-col">
+        <div>
             <button
-                class="button_style justify-between items-center"
                 type="submit">
                 Sign In
             </button>
         </div>
     </form>
 
-    <p class= "mt-4 justify-between items-center flex flex-col">
-        <label class="guidance_style"> - Are you not registered? Register here - </label>
-        <button hx-get="/register" hx-target="#content" hx-swap="outerHTML" class="button_style justify-between items-center">
+    <p>
+        <label> - Are you not registered? Register here - </label>
+        <button hx-get="/register" hx-target="#content" hx-swap="outerHTML">
             Register
         </button>
     </p>

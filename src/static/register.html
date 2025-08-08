@@ -1,5 +1,5 @@
-<div id="content" class="centered_form_inner_style">
-    <h2 class="page_title_style block flex flex-col">Register</h2>
+<div id="content">
+    <h2>Register</h2>
     <form
         hx-put="/writing_user" 
         hx-target="#content" 
@@ -7,78 +7,66 @@
         hx-trigger="submit"
         id="registration-form">
 
-        <div class="mb-4">
-            <label for="first_name" class="label_input_style ">
+        <div>
+            <label for="first_name">
                 First Name
             </label>
             <input
                 type="text"  
                 id="first_name"
                 name="first_name"
-                class="form_input_style"
                 minlength="3"
                 maxlength="20"
                 autocomplete="given-name"
-                required
-            >
+                required>
         </div>
-        <div class="mb-4">
-            <label for= "last_name" class="label_input_style ">
+        <div>
+            <label for= "last_name">
                 Last Name
             </label>
             <input 
                 type="text"  
                 id="last_name"
                 name="last_name"
-                class="form_input_style"
                 minlength="3"
                 maxlength="30"
                 autocomplete="family-name"
-                required
-            >
+                required>
         </div>
-        <div class="mb-4">
-            <label for="email" class="label_input_style ">
+        <div>
+            <label for="email">
                 Email
             </label>
             <input 
                 id="email"
                 type="email"  
                 name="email"
-                class="form_input_style"
                 required
-                autocomplete="email"
-            >
+                autocomplete="email">
         </div>
-        <div class="mb-4 h-6 text-red-500" hidden> Email exists!</div>
-        <div class="mb-4">
-            <label for="password" class="label_input_style ">
+        <div hidden> Email exists!</div>
+        <div>
+            <label for="password">
                 Password
             </label>
             <input 
                 type="password"
                 id="password"
                 name="password"
-                class="form_input_style"
                 required
                 autocomplete="new-password"
                 minlength="8"
-                maxlength="50"
-            >
+                maxlength="50">
         </div>
-        <div class="flex items-center justify-between">
+        <div>
             <button
-                class="button_style"
-                type="submit"
-            >
+                type="submit">
                 Register
             </button>
             <button 
                 hx-get="/?back=1" 
                 hx-target="#content"
-                hx-swap="outerHTML"
-                class="button_style"
-            >
+                hx-swap="outerHTML">
                 Back
             </button>
         </div>

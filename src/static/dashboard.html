@@ -1,13 +1,11 @@
-<div class="centered_form_inner_style grid-rows-3" id="content" hx-swap-oob="true">
+<div id="content" hx-swap-oob="true">
 
-  <div class="flex items-center justify-between mb-4 row-span-1">  
+  <div>  
     <div style="text-transform: uppercase">Welcome {{first_name}} {{last_name}} - {{email}}</div> 
     <button 
       hx-get="/?back=1" 
       hx-target="#content"
-      hx-swap="outerHTML"
-      class="button_style"
-    >
+      hx-swap="outerHTML">
       Back
     </button>
   </div>
@@ -18,61 +16,50 @@
     hx-oob-swap = "true"
     hx-swap = "beforeend"
     hx-target = "#workout_tbody"
-    class="flex items-center gap-4 centered_form row-span-2"
-    title="Add New Exercise"
-  >
-    <div class="flex-auto">
-      <label for="exercise" class="label_input_style">Exercise</label>
+    title="Add New Exercise">
+    <div>
+      <label for="exercise">Exercise</label>
       <input
         type="text"
         id="exercise"
         name="exercise"
         placeholder="e.g., Bench Press"
-        class="form_input_style text-transform: lowercase"
-        required
-      >
+        class="text-transform: lowercase"
+        required>
     </div>
 
-    <div class="flex-auto">
-      <label for="weight" class="label_input_style">Weight (kg)</label>
+    <div>
+      <label for="weight">Weight (kg)</label>
       <input
         type="number"
         id="weight"
         name="weight"
         placeholder="0"
-        class="form_input_style"
-        required
-      >
+        required>
     </div>
 
-    <div class="flex-auto">
-      <label for="sets" class="label_input_style">Sets</label>
+    <div>
+      <label for="sets">Sets</label>
       <input
         type="number"
         id="sets"
         name="sets"
         placeholder="0"
-        class="form_input_style"
-        required
-      >
+        required>
     </div>
 
-    <div class="flex-auto">
-      <label for="reps" class="label_input_style">Reps</label>
+    <div>
+      <label for="reps">Reps</label>
       <input
         type="number"
         id="reps"
         name="reps"
         placeholder="0"
-        class="form_input_style"
-        required
-      >
+        required>
     </div>
-    <div class="self-end">
+    <div>
       <button
-        type="submit"
-        class="button_style"
-      >
+        type="submit">
         Save
       </button>
     </div>
@@ -80,19 +67,19 @@
 
 <!-- table for showing the data of the user -->
 
-<table class="tb_style row-span-3" id="exercise_table">
+<table id="exercise_table">
   <thead>
     <tr>
-      <th class="th_style">Exercise</th>
-      <th class="th_style">Weight (kg)</th>
-      <th class="th_style">Sets</th>
-      <th class="th_style">Reps</th>
-      <th class="th_style">Created At (Y-m-d)</th>
-      <th class="th_style">Delete it</th>
+      <th>Exercise</th>
+      <th>Weight (kg)</th>
+      <th>Sets</th>
+      <th>Reps</th>
+      <th>Created At (Y-m-d)</th>
+      <th>Delete it</th>
     </tr>
   </thead>
 
-  <tbody id="workout_tbody" class="row-span-3">
+  <tbody id="workout_tbody">
   {{workout_table}}
   </tbody>
 
