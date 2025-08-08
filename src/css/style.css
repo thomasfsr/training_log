@@ -1,17 +1,27 @@
 html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
+    font-family: "Noto Sans", sans-serif;
 }
-body {
+/* body {
     min-height: 100%;
     border: 8px solid black;
     display: grid;
-    place-items: center; /* shorthand for align-items and justify-items */
+    place-items: center;
+} */
+
+.login {
+    border: 1px solid green;
+    display: grid;
+    gap: 20px;
 }
 
-.content {
-    border: 8px solid green;
+.dashboard {
+    border: 1px solid blue;
+    display: grid;
+    gap: 20px;
+}
+
+.register {
+    border: 1px solid yellow;
     display: grid;
     gap: 20px;
 }
