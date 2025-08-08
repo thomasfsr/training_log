@@ -5,16 +5,6 @@ html, body {
     align-content: center;
 }
 
-/* body {
-    font-family: "Noto Sans", sans-serif;
-    min-height: 100%;
-    border: 1px solid red;
-    justify-content:space-evenly;
-    align-items: center;
-    align-content: center;
-} */
-
-
 .login {
     border: 1px solid green;
     display: flex;
@@ -22,8 +12,12 @@ html, body {
     justify-content:space-evenly;
     align-items: center;
     align-content: center;
-    flex-direction: row;
+    flex-direction: column;
     gap: 20px;
+}
+
+.login-input {
+    padding: 10px;
 }
 
 .dashboard {

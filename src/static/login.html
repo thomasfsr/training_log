@@ -1,12 +1,12 @@
 <div id="content" class="login">
-    <h2>Login</h2>
+    <h2 class="title">Login</h2>
     <form
         hx-put="/auth" 
         hx-target="#content" 
         hx-trigger="submit"
         hx-swap="none">
 
-        <div id="email">
+        <div id="email" class="login-input">
             <label >
                 Email
             </label>
@@ -16,7 +16,7 @@
                 name="email"
                 required>
         </div>
-        <div id="password">
+        <div id="password" class="login-input">
             <label >
                 Password
             </label>
@@ -36,12 +36,12 @@
         </div>
     </form>
 
-    <p>
+    <div>
         <label> - Are you not registered? Register here - </label>
         <button hx-get="/register" hx-target="#content" hx-swap="outerHTML">
             Register
         </button>
-    </p>
+    </div>
 
 </div>
 
