@@ -13,11 +13,12 @@ html, body {
     align-items: center;
     align-content: center;
     flex-direction: column;
-    gap: 20px;
+    padding: 10px;
 }
 
-.login-input {
-    padding: 10px;
+.login-form {
+    display: flex;
+    flex-direction: column;
 }
 
 .dashboard {

@@ -1,48 +1,42 @@
 <div id="content" class="login">
     <h2 class="title">Login</h2>
     <form
-        hx-put="/auth" 
-        hx-target="#content" 
-        hx-trigger="submit"
-        hx-swap="none">
+    class="login-form"
+    hx-put="/auth" 
+    hx-target="#content" 
+    hx-trigger="submit"
+    hx-swap="none">
 
-        <div id="email" class="login-input">
-            <label >
+        <div class="login-input">
+            <label for="user-email">
                 Email
             </label>
             <input
-                id="user_email"
-                type="email"  
-                name="email"
-                required>
-        </div>
-        <div id="password" class="login-input">
-            <label >
+            id="login-email"
+            type="email"  
+            name="email"
+            required>
+            <label for="login-password">
                 Password
             </label>
-            <input 
-                type="password"  
-                name="password"
-                required>
+            <input
+            id="login-password" 
+            type="password"  
+            name="password"
+            required>
         </div>
 
-        <div hidden id="hidden_alert"> Password or Email invalid!</div>
+        <div hidden id="hidden_alert" > Password or Email invalid!</div>
 
-        <div>
-            <button
-                type="submit">
-                Sign In
-            </button>
-        </div>
+        <button
+        type="submit"> Sign In
+        </button>
+
     </form>
 
-    <div>
-        <label> - Are you not registered? Register here - </label>
-        <button hx-get="/register" hx-target="#content" hx-swap="outerHTML">
-            Register
-        </button>
-    </div>
-
-</div>
-
+    <label for="regiter-button"> - Are you not registered? Register here - </label>
+    <button hx-get="/register" hx-target="#content" hx-swap="outerHTML" id="regiter-button">
+        Register
+    </button>
+    
 </div>
