@@ -27,14 +27,15 @@
                 required>
             </div>
             <div hidden id="hidden_alert" > Password or Email invalid!</div>
-            <button class= button-container
-            type="submit"> Sign In
-            </button>
         </form>
+        <button
+        type="submit"> Sign In
+        </button>
     </div>
+    <div class= login-register>
     <label for="regiter-button"> - Are you not registered? Register here - </label>
     <button hx-get="/register" hx-target="#content" hx-swap="outerHTML" id="regiter-button">
         Register
     </button>
-    
+    </div>
 </div>
