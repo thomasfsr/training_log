@@ -1,4 +1,7 @@
 services:
+
+# Postgres 
+
   db:
     image: postgres:17
     container_name: training-pg
@@ -11,3 +14,19 @@ services:
     volumes:
       - ./init:/docker-entrypoint-initdb.d
     restart: unless-stopped
+  
+# Redis
+
+  cache-db:
+    image: redis:7.2-alpine
+    container_name: training-redis
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    ports:
+      - "6379:6379"
+    command: sh -c "redis-server --requirepass $REDIS_PASSWORD"   
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
