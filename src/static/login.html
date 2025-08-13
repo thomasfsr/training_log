@@ -1,39 +1,37 @@
 <div id="content" class="login">
     <h2 class="title">Login</h2>
-    <form
-    class="login-form"
-    hx-put="/auth" 
-    hx-target="#content" 
-    hx-trigger="submit"
-    hx-swap="none">
+    <div class="login-form">
+        <form
+        hx-put="/auth" 
+        hx-target="#content" 
+        hx-trigger="submit"
+        hx-swap="none">
 
-        <div class="login-input">
-            <label for="user-email">
-                Email
-            </label>
-            <input
-            id="login-email"
-            type="email"  
-            name="email"
-            required>
-            <label for="login-password">
-                Password
-            </label>
-            <input
-            id="login-password" 
-            type="password"  
-            name="password"
-            required>
-        </div>
-
-        <div hidden id="hidden_alert" > Password or Email invalid!</div>
-
-        <button
-        type="submit"> Sign In
-        </button>
-
-    </form>
-
+            <div class="login-input">
+                <label for="user-email">
+                    Email
+                </label>
+                <input
+                id="login-email"
+                type="email"  
+                name="email"
+                required>
+                <label for="login-password">
+                    Password
+                </label>
+                <input
+                id="login-password" 
+                type="password"  
+                name="password"
+                autocomplete="current-password"
+                required>
+            </div>
+            <div hidden id="hidden_alert" > Password or Email invalid!</div>
+            <button class= button-container
+            type="submit"> Sign In
+            </button>
+        </form>
+    </div>
     <label for="regiter-button"> - Are you not registered? Register here - </label>
     <button hx-get="/register" hx-target="#content" hx-swap="outerHTML" id="regiter-button">
         Register
