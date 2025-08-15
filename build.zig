@@ -49,6 +49,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const okredis = b.dependency("okredis", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const pg = b.dependency("pg", .{
         .target = target,
         .optimize = optimize,
@@ -78,6 +83,7 @@ pub fn build(b: *std.Build) void {
     exe.linkLibC();
     exe.root_module.addImport("httpz", httpz.module("httpz"));
     exe.root_module.addImport("pg", pg.module("pg"));
+    exe.root_module.addImport("okredis", okredis.module("okredis"));
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default

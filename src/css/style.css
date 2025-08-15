@@ -1,9 +1,17 @@
+:root {
+    --ubuntu-font: "Ubuntu", sans-serif;
+    --ubuntu-light: 300;
+    --ubuntu-regular: 400;
+    --ubuntu-medium: 500;
+    --ubuntu-bold: 700;
+  }
+
 html, body {
     height: 100%;
     margin: 0;
     padding: 0;
     align-content: center;
-    font-family: monospace;
+    font-family: var(--ubuntu-font)
 }
 
 .login {
@@ -20,8 +28,7 @@ html, body {
 .login-form {
     display: flex;
     justify-content:space-evenly;
-    align-items: center;
-    align-content: center;
+    align-items:center;
     flex-direction: column;
     gap: 1rem;
     padding: 1rem;

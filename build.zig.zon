@@ -44,6 +44,10 @@
             .url = "git+https://github.com/karlseguin/pg.zig?ref=master#b8049082001e8cc4a4be0f388fbb0d61c631368e",
             .hash = "pg-0.0.0-Wp_7gUf-BQCl7Tul7Q5FRG-S5DeuO2UnKTABZ_E57pSI",
         },
+        .okredis = .{
+            .url = "git+https://github.com/kristoff-it/zig-okredis#f53ad9f03a57d41d89b3ee779aaca608e1e4767f",
+            .hash = "okredis-0.1.0-Cg726vcEBAAjrhwgBJ2cjL4qN3ircjBsX6iTd7wEFiEC",
+        },
     },
     .paths = .{
         "build.zig",
