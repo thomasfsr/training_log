@@ -36,7 +36,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     // - Postgres -
-    var pool = try pg.Pool.init(allocator, .{ .size = 10, .connect = .{ .port = 5432, .host = "127.0.0.1" }, .auth = .{
+    var pool = try pg.Pool.init(allocator, .{ .size = 10, .connect = .{ .port = 5433, .host = "127.0.0.1" }, .auth = .{
         .username = "thomasfsr91",
         .database = "training_db",
         .password = "feliz1989",

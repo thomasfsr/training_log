@@ -1,6 +1,6 @@
 services:
 
-# Postgres 
+# Postgres
 
   db:
     image: postgres:17
@@ -10,11 +10,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - ./init:/docker-entrypoint-initdb.d
     restart: unless-stopped
-  
+
 # Redis
 
   cache-db:
@@ -24,7 +24,7 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
     ports:
       - "6379:6379"
-    command: sh -c "redis-server --requirepass $REDIS_PASSWORD"   
+    command: sh -c "redis-server --requirepass $REDIS_PASSWORD"
     volumes:
       - redis_data:/data
 
